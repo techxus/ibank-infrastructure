@@ -77,5 +77,4 @@ jobs:
       - name: Terragrunt Apply
         run: |
           terragrunt run-all apply \
-            --backend-bootstrap \
             --terragrunt-non-interactive
