@@ -54,18 +54,7 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
       ############################################
       {
         Effect = "Allow"
-        Action = [
-          "s3:ListBucket",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:GetBucketVersioning",      # ← add this
-          "s3:PutBucketVersioning",      # ← add this too (needed for bootstrap)
-          "s3:GetEncryptionConfiguration", # ← and this (needed for bootstrap)
-          "s3:GetBucketPolicy",          # ← and this
-          "s3:GetBucketAcl",             # ← and this
-          "s3:GetBucketLocation"         # ← and this (needed by Terragrunt)
-        ]
+        Action   = ["s3:*"]
         Resource = [
           "arn:aws:s3:::ibank-terraform-state",
           "arn:aws:s3:::ibank-terraform-state/*"
