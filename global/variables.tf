@@ -17,12 +17,6 @@ variable "github_repo" {
 variable "service_names" {
   description = "List of microservice names — one ECR repo created per service"
   type        = list(string)
-  default = [
-    "ibank-user-service",
-    "ibank-payment-service",
-    "ibank-notification-service",
-    "ibank-gateway-service"
-  ]
 }
 
 variable "tags" {
