@@ -6,7 +6,6 @@
 # - variables.tf declares "what you can configure".
 # - terraform.tfvars sets "values for this environment".
 ############################################
-
 variable "region" {
   description = "AWS region"
   type        = string
