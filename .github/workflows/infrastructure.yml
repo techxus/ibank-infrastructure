@@ -75,7 +75,6 @@ jobs:
       # automatically if they don't exist yet.
       ############################################
       - name: Terragrunt Apply
-        working-directory: ibank-infrastructure
         run: |
           terragrunt run-all apply \
             --backend-bootstrap \
