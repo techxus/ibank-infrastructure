@@ -16,6 +16,24 @@ provider "aws" {
   region = var.region
 }
 
+data "terraform_remote_state" "networking" {
+  backend = "s3"
+  config = {
+    bucket = "ibank-terraform-state"
+    key    = "environments/aws/dev/vpc/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+data "terraform_remote_state" "global" {
+  backend = "s3"
+  config = {
+    bucket = "ibank-terraform-state"
+    key    = "global/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 module "vpc" {
   source = "../../../modules/aws/vpc"
 
@@ -71,7 +89,6 @@ module "eks" {
     ManagedBy   = "Terraform"
     Project     = "iBank"
   }
-  hcp_agent_role_arn = ""
 }
 
 ############################################################

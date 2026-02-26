@@ -130,10 +130,6 @@ variable "tags" {
   default     = {}
 }
 
-variable "hcp_agent_role_arn" {
-  type = string
-}
-
 variable "ami_type" {
   description = "EKS managed node group AMI type"
   type        = string

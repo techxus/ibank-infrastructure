@@ -67,21 +67,6 @@ module "eks" {
     }
   }
 
-  access_entries = {
-    hcp_agent = {
-      principal_arn = var.hcp_agent_role_arn
-
-      policy_associations = {
-        admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
-  }
-
   tags = local.common_tags
 }
 
