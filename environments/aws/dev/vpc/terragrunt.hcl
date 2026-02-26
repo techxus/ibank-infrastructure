@@ -1,5 +1,5 @@
 ############################################
-# environments/aws/dev/vpc/terragrunt.hcl
+# environments/aws/dev/vpc/root.hcl
 # No dependencies — vpc runs first
 ############################################
 

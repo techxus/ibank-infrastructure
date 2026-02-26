@@ -1,5 +1,5 @@
 ############################################
-# infrastructure/terragrunt.hcl
+# infrastructure/root.hcl
 #
 # PURPOSE:
 # Root config inherited by all workspaces.
@@ -21,5 +21,6 @@ remote_state {
     region         = "us-east-1"
     dynamodb_table = "ibank-terraform-locks"
     encrypt        = true
+    kms_key_id     = "alias/ibank-terraform-state"   # ← add this
   }
 }

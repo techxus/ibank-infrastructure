@@ -3,12 +3,12 @@
 # Purpose:
 # - Create EKS cluster for dev environment
 # - VPC outputs come from Terragrunt dependency
-#   declared in terragrunt.hcl — no remote
+#   declared in root.hcl — no remote
 #   state data blocks needed here.
 ############################################
 
 # Read vpc outputs via Terragrunt dependency
-# These values are injected by terragrunt.hcl
+# These values are injected by root.hcl
 locals {
   vpc_id             = var.vpc_id
   private_subnet_ids = var.private_subnet_ids
