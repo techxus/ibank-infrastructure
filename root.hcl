@@ -1,12 +1,3 @@
-############################################
-# infrastructure/root.hcl
-#
-# PURPOSE:
-# Root config inherited by all workspaces.
-# Defines the S3 backend once so it never
-# needs to be repeated in any workspace.
-############################################
-
 remote_state {
   backend = "s3"
 
@@ -21,6 +12,5 @@ remote_state {
     region         = "us-east-1"
     dynamodb_table = "ibank-terraform-locks"
     encrypt        = true
-    kms_key_id     = "alias/ibank-terraform-state"   # ← add this
   }
 }
