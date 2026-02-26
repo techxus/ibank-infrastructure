@@ -1,15 +1,20 @@
 ############################################
-# iam.tf
+# global/iam.tf
 # GitHub Actions OIDC — keyless CI/CD auth
 ############################################
 
 resource "aws_iam_openid_connect_provider" "github" {
+  # GitHub's OIDC endpoint — this is the identity provider
+  # that GitHub Actions uses to prove who it is to AWS.
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 }
 
 resource "aws_iam_role" "github_actions" {
+  # This is the role GitHub Actions will assume.
+  # It defines WHAT can assume it (trust policy)
+  # and WHAT it can do (permissions policy below).
   name = "ibank-github-actions-role"
 
   assume_role_policy = jsonencode({
@@ -17,11 +22,14 @@ resource "aws_iam_role" "github_actions" {
     Statement = [{
       Effect = "Allow"
       Principal = {
+        # Only the GitHub OIDC provider can assume this role
         Federated = aws_iam_openid_connect_provider.github.arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringLike = {
+          # Only THIS specific GitHub org/repo can assume this role.
+          # Prevents other GitHub repos from using your AWS account.
           "token.actions.githubusercontent.com:sub" : "repo:${var.github_org}/${var.github_repo}:*"
         }
       }
@@ -29,6 +37,18 @@ resource "aws_iam_role" "github_actions" {
   })
 
   tags = merge({ ManagedBy = "Terraform" }, var.tags)
+}
+
+############################################
+# IMPORTANT: This resource tells Terraform to
+# exclusively manage ALL inline policies on this role.
+# Any policy not defined here will be REMOVED.
+# This fixes the problem of old policies lingering
+# in AWS after a rename.
+############################################
+resource "aws_iam_role_policies_exclusive" "github_actions" {
+  role_name    = aws_iam_role.github_actions.name
+  policy_names = [aws_iam_role_policy.github_actions_permissions.name]
 }
 
 resource "aws_iam_role_policy" "github_actions_permissions" {
@@ -41,6 +61,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # S3 — read and write Terraform state files
+      # Terragrunt needs these to read and write
+      # terraform.tfstate files for all workspaces.
       ############################################
       {
         Effect = "Allow"
@@ -58,6 +80,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # DynamoDB — state locking
+      # Prevents two pipeline runs from applying
+      # at the same time and corrupting state.
       ############################################
       {
         Effect = "Allow"
@@ -72,6 +96,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # KMS — decrypt and encrypt state files
+      # The state bucket uses KMS encryption so
+      # the role needs permission to use the key.
       ############################################
       {
         Effect = "Allow"
@@ -86,6 +112,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # ECR — push and pull container images
+      # CI/CD pipeline pushes built images to ECR.
+      # EKS pulls images from ECR to run containers.
       ############################################
       {
         Effect = "Allow"
@@ -110,8 +138,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # IAM — manage roles and policies
-      # Needed because Terraform creates IAM roles
-      # for EKS node groups, IRSA, etc.
+      # Terraform creates IAM roles for EKS node
+      # groups, IRSA, service accounts, etc.
       ############################################
       {
         Effect = "Allow"
@@ -153,8 +181,9 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
       },
 
       ############################################
-      # VPC and networking
-      # Needed to create VPC, subnets, NAT, IGW
+      # EC2 and VPC networking
+      # Needed to create VPC, subnets, NAT gateway,
+      # internet gateway, security groups, etc.
       ############################################
       {
         Effect = "Allow"
@@ -166,6 +195,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # EKS — create and manage cluster
+      # Full EKS permissions to create cluster,
+      # node groups, addons, access entries, etc.
       ############################################
       {
         Effect = "Allow"
@@ -177,6 +208,7 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # CloudWatch logs — EKS control plane logs
+      # EKS writes control plane logs to CloudWatch.
       ############################################
       {
         Effect = "Allow"
@@ -196,6 +228,8 @@ resource "aws_iam_role_policy" "github_actions_permissions" {
 
       ############################################
       # KMS — general key management for EKS
+      # EKS uses KMS to encrypt Kubernetes secrets
+      # stored in etcd (the cluster database).
       ############################################
       {
         Effect = "Allow"
