@@ -1,5 +1,12 @@
-# Local .terraform directories
-.terraform/
+# Terraform local cache (never commit)
+**/.terraform/
+**/.terraform.lock.hcl
+
+# Terraform state (never commit)
+**/*.tfstate
+**/*.tfstate.*
+crash.log
+
 
 # .tfstate files
 *.tfstate
@@ -14,6 +21,7 @@ crash.*.log
 # control as they are data points which are potentially sensitive and subject 
 # to change depending on the environment.
 *.tfvars
+!environments/aws/**/terraform.tfvars
 *.tfvars.json
 
 # Ignore override files as they are usually used to override resources locally and so
@@ -35,3 +43,5 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+/ibank-terraform-eks-infrastructure.iml
+/ibank-infrastructure.iml
