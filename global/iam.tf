@@ -39,18 +39,6 @@ resource "aws_iam_role" "github_actions" {
   tags = merge({ ManagedBy = "Terraform" }, var.tags)
 }
 
-############################################
-# IMPORTANT: This resource tells Terraform to
-# exclusively manage ALL inline policies on this role.
-# Any policy not defined here will be REMOVED.
-# This fixes the problem of old policies lingering
-# in AWS after a rename.
-############################################
-resource "aws_iam_role_policies_exclusive" "github_actions" {
-  role_name    = aws_iam_role.github_actions.name
-  policy_names = [aws_iam_role_policy.github_actions_permissions.name]
-}
-
 resource "aws_iam_role_policy" "github_actions_permissions" {
   name = "ibank-github-actions-policy"
   role = aws_iam_role.github_actions.id
