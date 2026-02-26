@@ -45,7 +45,6 @@ module "vpc" {
   az_count           = var.az_count
   single_nat_gateway = var.single_nat_gateway
 
-  # optional but recommended once EKS name is known:
   eks_cluster_name = "${var.cluster_name_prefix}-${var.env}-eks"
 
   tags = {

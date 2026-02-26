@@ -1,0 +1,89 @@
+############################################
+# .github/workflows/infrastructure.yml
+#
+# PURPOSE:
+# Automatically runs Terragrunt on every
+# commit to main branch.
+#
+# AUTHENTICATION:
+# Uses OIDC — no AWS credentials stored
+# in GitHub secrets. IAM role was created
+# in global/iam.tf
+#
+# FLOW:
+# commit → trigger → assume AWS role →
+# terragrunt run-all apply → done
+############################################
+name: iBank Infrastructure Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ibank-infrastructure/**'           # Only triggers when infra files change
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ibank-infrastructure/**'
+
+permissions:
+  id-token: write                     # Required for OIDC
+  contents: read
+
+jobs:
+  terragrunt:
+    name: Terragrunt
+    runs-on: ubuntu-latest
+
+    steps:
+      ############################################
+      # 1. Check out code
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      ############################################
+      # 2. Install Terraform
+      ############################################
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false    # Required for Terragrunt
+
+      ############################################
+      # 3. Install Terragrunt
+      ############################################
+      - name: Setup Terragrunt
+        run: |
+          wget -q https://github.com/gruntwork-io/terragrunt/releases/download/v0.55.0/terragrunt_linux_amd64
+          chmod +x terragrunt_linux_amd64
+          sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+          terragrunt --version
+
+      ############################################
+      # 4. Authenticate to AWS via OIDC
+      # No credentials stored anywhere.
+      # GitHub exchanges its OIDC token for
+      # temporary AWS credentials automatically.
+      ############################################
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      ############################################
+      # 5. Apply on merge to main
+      # Only runs after PR is approved and merged.
+      # --backend-bootstrap creates S3 + DynamoDB
+      # automatically if they don't exist yet.
+      ############################################
+      - name: Terragrunt Apply
+        working-directory: ibank-infrastructure
+        run: |
+          terragrunt run-all apply \
+            --backend-bootstrap \
+            --terragrunt-non-interactive
