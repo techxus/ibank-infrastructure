@@ -22,11 +22,6 @@ on:
       - main
     paths:
       - 'ibank-infrastructure/**'           # Only triggers when infra files change
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'ibank-infrastructure/**'
 
 permissions:
   id-token: write                     # Required for OIDC
