@@ -95,7 +95,6 @@ chown -R runner:runner /home/runner/actions-runner
 ############################################
 # Get registration token from GitHub API
 ############################################
-# NEW - repo level (register for both repos)
 REG_TOKEN=$(curl -fsSL \
   -X POST \
   -H "Authorization: token ${github_token}" \
@@ -103,15 +102,12 @@ REG_TOKEN=$(curl -fsSL \
   "https://api.github.com/repos/${github_org}/${github_repo_infra}/actions/runners/registration-token" \
   | jq -r '.token')
 
-sudo -u runner /home/runner/actions-runner/config.sh \
-  --url "https://github.com/${github_org}/${github_repo_infra}" \
-
 ############################################
-# Register runner with GitHub org
+# Register runner with GitHub repo
 # Labels help workflows target this runner
 ############################################
 sudo -u runner /home/runner/actions-runner/config.sh \
-  --url "https://github.com/${github_org}" \
+  --url "https://github.com/${github_org}/${github_repo_infra}" \
   --token "$REG_TOKEN" \
   --name "ibank-${env}-runner-$(hostname)" \
   --labels "ibank,${env},eks,aws" \
