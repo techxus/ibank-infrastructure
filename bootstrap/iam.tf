@@ -84,11 +84,6 @@ resource "aws_iam_role_policy" "github_actions" {
         Effect = "Allow"
         Action = ["kms:*"]
         Resource = "*"
-        Condition = {
-          StringEquals = {
-            "aws:ResourceTag/ManagedBy" = "Terraform"
-          }
-        }
       },
 
       ############################################
