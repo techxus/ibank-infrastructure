@@ -3,8 +3,7 @@ include "root" {
 }
 
 dependency "vpc" {
-  config_path  = "../vpc"
-  skip_outputs = true
+  config_path = "../vpc"
 
   mock_outputs = {
     vpc_id             = "vpc-mock"
@@ -15,6 +14,6 @@ dependency "vpc" {
 }
 
 inputs = {
-  vpc_id             = "vpc-mock"
-  private_subnet_ids = ["subnet-mock-1", "subnet-mock-2"]
+  vpc_id             = dependency.vpc.outputs.vpc_id
+  private_subnet_ids = dependency.vpc.outputs.private_subnet_ids
 }

@@ -39,20 +39,38 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
+      ############################################
+      # Cleanup orphaned resources that Terraform
+      # may have missed in previous failed runs.
+      # || true means step never fails if resource
+      # does not exist.
+      ############################################
+      - name: Cleanup orphaned KMS aliases
+        run: |
+          aws kms delete-alias \
+            --alias-name alias/eks/ibank-dev-eks \
+            --region us-east-1 || true
+
+      - name: Cleanup orphaned CloudWatch log groups
+        run: |
+          aws logs delete-log-group \
+            --log-group-name /aws/eks/ibank-dev-eks/cluster \
+            --region us-east-1 || true
+
       - name: Destroy EKS
         working-directory: environments/aws/dev/eks
         run: |
           terragrunt init
-          terraform destroy -auto-approve
+          terragrunt destroy -auto-approve --terragrunt-non-interactive
 
       - name: Destroy VPC
         working-directory: environments/aws/dev/vpc
         run: |
           terragrunt init
-          terraform destroy -auto-approve
+          terragrunt destroy -auto-approve --terragrunt-non-interactive
 
       - name: Destroy Global
         working-directory: global
         run: |
           terragrunt init
-          terraform destroy -auto-approve
+          terragrunt destroy -auto-approve --terragrunt-non-interactive
