@@ -1,0 +1,70 @@
+############################################
+# .github/workflows/destroy.yml
+#
+# PURPOSE:
+# Destroys ALL infrastructure in correct
+# reverse order. Run manually only.
+#
+# HOW TO RUN:
+# GitHub → Actions → Destroy Infrastructure
+# → Run workflow → confirm
+############################################
+
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:        # Manual trigger only — never runs automatically
+    inputs:
+      confirm:
+        description: "Type DESTROY to confirm"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  destroy:
+    name: Terragrunt Destroy
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'DESTROY'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          wget -q https://github.com/gruntwork-io/terragrunt/releases/download/v0.55.0/terragrunt_linux_amd64
+          chmod +x terragrunt_linux_amd64
+          sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Destroy EKS
+        run: |
+          terragrunt destroy \
+            --terragrunt-non-interactive \
+            --terragrunt-working-dir environments/aws/dev/eks
+
+      - name: Destroy VPC
+        run: |
+          terragrunt destroy \
+            --terragrunt-non-interactive \
+            --terragrunt-working-dir environments/aws/dev/vpc
+
+      - name: Destroy Global
+        run: |
+          terragrunt destroy \
+            --terragrunt-non-interactive \
+            --terragrunt-working-dir global
