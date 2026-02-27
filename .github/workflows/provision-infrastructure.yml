@@ -4,12 +4,8 @@ on:
   push:
     branches:
       - master
-    paths:
-      - 'bootstrap/**'
-      - 'global/**'
-      - 'environments/**'
-      - 'modules/**'
-      - 'root.hcl'
+    paths-ignore:
+      - '**/nuke-infrastructure.yml'
 
 permissions:
   id-token: write
