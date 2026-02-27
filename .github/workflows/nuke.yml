@@ -45,17 +45,17 @@ jobs:
       # || true means step never fails if resource
       # does not exist.
       ############################################
-      - name: Cleanup orphaned KMS aliases
+      - name: Cleanup orphaned EKS resources
         run: |
+          # Delete KMS alias if exists
           aws kms delete-alias \
             --alias-name alias/eks/ibank-dev-eks \
-            --region us-east-1 || true
-
-      - name: Cleanup orphaned CloudWatch log groups
-        run: |
+            --region us-east-1 2>/dev/null || true
+          
+          # Delete CloudWatch log group if exists  
           aws logs delete-log-group \
             --log-group-name /aws/eks/ibank-dev-eks/cluster \
-            --region us-east-1 || true
+            --region us-east-1 2>/dev/null || true
 
       - name: Destroy EKS
         working-directory: environments/aws/dev/eks
