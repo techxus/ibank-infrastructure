@@ -1,4 +1,4 @@
-name: iBank Infrastructure Pipeline
+name: Provision iBank Infrastructure
 
 on:
   push:
