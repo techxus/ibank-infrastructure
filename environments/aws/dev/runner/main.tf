@@ -67,6 +67,11 @@ resource "aws_iam_role" "runner" {
   tags               = merge(var.tags, { Purpose = "github-runner" })
 }
 
+resource "aws_iam_role_policy_attachment" "runner_ssm" {
+  role       = aws_iam_role.runner.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_role_policy" "runner" {
   name = "ibank-${var.env}-github-runner-policy"
   role = aws_iam_role.runner.id

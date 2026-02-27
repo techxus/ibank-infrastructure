@@ -24,6 +24,13 @@ apt-get install -y \
   gnupg
 
 ############################################
+# Install SSM Agent
+############################################
+snap install amazon-ssm-agent --classic
+systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+############################################
 # Install AWS CLI v2
 ############################################
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
@@ -104,14 +111,12 @@ REG_TOKEN=$(curl -fsSL \
 
 ############################################
 # Register runner with GitHub repo
-# Labels help workflows target this runner
 ############################################
 sudo -u runner /home/runner/actions-runner/config.sh \
   --url "https://github.com/${github_org}/${github_repo_infra}" \
   --token "$REG_TOKEN" \
   --name "ibank-${env}-runner-$(hostname)" \
   --labels "ibank,${env},eks,aws" \
-  --runnergroup "Default" \
   --unattended \
   --replace
 
