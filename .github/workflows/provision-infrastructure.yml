@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths-ignore:
-      - '**/nuke-infrastructure.yml'
+      '.github/workflows/nuke-infrastructure.yml'
 
 permissions:
   id-token: write
@@ -62,4 +62,3 @@ jobs:
           name: errored-tfstate
           path: '**/errored.tfstate'
           retention-days: 5
-

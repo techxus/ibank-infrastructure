@@ -43,3 +43,4 @@ override.tf.json
 terraform.rc
 /ibank-terraform-eks-infrastructure.iml
 /ibank-infrastructure.iml
+**/backend.tf

@@ -8,6 +8,11 @@ variable "env" {
   type        = string
 }
 
+variable "domain" {
+  description = "Root domain name"
+  type        = string
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)
