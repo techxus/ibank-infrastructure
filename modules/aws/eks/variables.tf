@@ -17,11 +17,6 @@
 ############################################
 # Basic inputs
 ############################################
-variable "region" {
-  description = "AWS region (example: us-east-1)"
-  type        = string
-}
-
 variable "env" {
   description = "Environment name (dev, stage, prod)"
   type        = string
@@ -30,16 +25,14 @@ variable "env" {
 ############################################
 # Cluster naming + version
 ############################################
-variable "cluster_name_prefix" {
-  description = "Prefix for EKS cluster name (we usually add env + random suffix)"
+variable "cluster_name" {
+  description = "Full EKS cluster name"
   type        = string
-  default     = "ibank"
 }
 
 variable "cluster_version" {
-  description = "Kubernetes version for the EKS control plane"
+  description = "Kubernetes version for EKS control plane"
   type        = string
-  default     = "1.29"
 }
 
 ############################################
@@ -82,6 +75,11 @@ variable "node_instance_type" {
 ############################################
 # Node Group 1 scaling
 ############################################
+variable "ng1_name" {
+  description = "Node group 1's name (used for tagging and IRSA)'"
+  type        = string
+  default     = "node-group-1"
+}
 variable "ng1_min_size" {
   description = "Node group 1: minimum number of nodes"
   type        = number
@@ -103,6 +101,12 @@ variable "ng1_desired_size" {
 ############################################
 # Node Group 2 scaling
 ############################################
+variable "ng2_name" {
+  description = "Node group 2's name (used for tagging and IRSA)'"
+  type        = string
+  default     = "node-group-2"
+}
+
 variable "ng2_min_size" {
   description = "Node group 2: minimum number of nodes"
   type        = number

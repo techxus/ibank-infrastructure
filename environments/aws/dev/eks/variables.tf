@@ -12,8 +12,8 @@ variable "env" {
   type        = string
 }
 
-variable "cluster_name_prefix" {
-  description = "Prefix for the EKS cluster name"
+variable "cluster_name" {
+  description = "Full EKS cluster name"
   type        = string
 }
 

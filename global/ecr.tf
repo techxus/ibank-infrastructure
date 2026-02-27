@@ -14,7 +14,7 @@ resource "aws_ecr_repository" "services" {
     scan_on_push = true
   }
 
-  tags = merge({ ManagedBy = "Terraform" }, var.tags)
+  tags = var.tags
 }
 
 resource "aws_ecr_lifecycle_policy" "services" {

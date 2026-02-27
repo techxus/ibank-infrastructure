@@ -46,14 +46,6 @@ locals {
   private_subnets = [
     for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, 100 + i)
   ]
-
-  common_tags = merge(
-    {
-      Environment = var.env
-      ManagedBy   = "Terraform"
-    },
-    var.tags
-  )
 }
 
 # Use the community VPC module (battle-tested)
@@ -99,5 +91,5 @@ module "vpc" {
     "kubernetes.io/cluster/${var.eks_cluster_name}"        = "shared"
   }
 
-  tags = local.common_tags
+  tags = var.tags
 }

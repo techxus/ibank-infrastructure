@@ -4,10 +4,8 @@
 # - Create VPC for dev environment
 # - EKS will read outputs from this workspace
 ############################################
-
 module "vpc" {
   source = "../../../../modules/aws/vpc"
-
   region = var.region
   env    = var.env
 
@@ -18,14 +16,6 @@ module "vpc" {
 
   # Tag subnets with cluster name so EKS Load Balancer
   # Controller can discover which subnets to use
-  eks_cluster_name = "${var.cluster_name_prefix}-${var.env}-eks"
-
-  tags = merge(
-    {
-      Environment = var.env
-      ManagedBy   = "Terraform"
-      Project     = "iBank"
-    },
-    var.tags
-  )
+  eks_cluster_name = var.cluster_name
+  tags = var.tags
 }

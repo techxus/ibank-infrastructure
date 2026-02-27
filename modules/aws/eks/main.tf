@@ -7,27 +7,11 @@
 # - Modules should NOT define provider blocks inside them in modern Terraform.
 # - Providers are configured in the ROOT (env) folder and passed in automatically.
 ############################################
-locals {
-  # Cluster name is stable and environment-specific
-  # NOTE: If you want uniqueness, add suffix back in:
-  # cluster_name = "${var.cluster_name_prefix}-${var.env}-eks-${random_string.suffix.result}"
-  cluster_name = "${var.cluster_name_prefix}-${var.env}-eks"
-
-  common_tags = merge(
-    {
-      Environment = var.env
-      ManagedBy   = "Terraform"
-      Project     = "iBank EKS Infrastructure Project"
-    },
-    var.tags
-  )
-}
-
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.8.5"
 
-  cluster_name    = local.cluster_name
+  cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
 
   # Private-only endpoint (production-grade)
@@ -49,7 +33,7 @@ module "eks" {
   # Two managed node groups
   eks_managed_node_groups = {
     one = {
-      name           = "node-group-1"
+      name = "${var.cluster_name}-ng1"
       instance_types = [var.node_instance_type]
 
       min_size     = var.ng1_min_size
@@ -58,7 +42,7 @@ module "eks" {
     }
 
     two = {
-      name           = "node-group-2"
+      name = "${var.cluster_name}-ng2"
       instance_types = [var.node_instance_type]
 
       min_size     = var.ng2_min_size
@@ -67,6 +51,6 @@ module "eks" {
     }
   }
 
-  tags = local.common_tags
+  tags = var.tags
 }
 

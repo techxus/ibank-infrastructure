@@ -6,28 +6,17 @@
 #   declared in root.hcl — no remote
 #   state data blocks needed here.
 ############################################
-
-# Read vpc outputs via Terragrunt dependency
-# These values are injected by root.hcl
-locals {
-  vpc_id             = var.vpc_id
-  private_subnet_ids = var.private_subnet_ids
-}
-
 module "eks" {
   source = "../../../../modules/aws/eks"
-
-  region = var.region
-  env    = var.env
-
-  cluster_name_prefix = var.cluster_name_prefix
-  cluster_version     = var.cluster_version
+  env             = var.env
+  cluster_name    = var.cluster_name
+  cluster_version = var.cluster_version
 
   cluster_endpoint_public_access  = var.cluster_endpoint_public_access
   cluster_endpoint_private_access = var.cluster_endpoint_private_access
 
-  vpc_id             = local.vpc_id
-  private_subnet_ids = local.private_subnet_ids
+  vpc_id             = var.vpc_id
+  private_subnet_ids = var.private_subnet_ids
 
   node_instance_type = var.node_instance_type
 
@@ -42,8 +31,6 @@ module "eks" {
   tags = merge(
     {
       Environment = var.env
-      ManagedBy   = "Terraform"
-      Project     = "iBank"
     },
     var.tags
   )
