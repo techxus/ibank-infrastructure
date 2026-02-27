@@ -108,8 +108,17 @@ resource "aws_iam_role_policy" "github_actions" {
           "arn:aws:iam::121897425968:role/ibank-*",
           "arn:aws:iam::121897425968:policy/ibank-*",
           "arn:aws:iam::121897425968:instance-profile/ibank-*",
-          "arn:aws:iam::121897425968:oidc-provider/*"
+          "arn:aws:iam::121897425968:oidc-provider/*",
+          "arn:aws:iam::121897425968:role/aws-service-role/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:CreateServiceLinkedRole"
+        ]
+        Resource = "*"
       },
 
       ############################################
