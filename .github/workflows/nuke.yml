@@ -54,9 +54,10 @@ jobs:
       - name: Destroy EKS
         run: |
           terragrunt destroy \
-          --terragrunt-non-interactive \
-          --terragrunt-working-dir environments/aws/dev/eks \
-          -auto-approve
+            --terragrunt-non-interactive \
+            --terragrunt-working-dir environments/aws/dev/eks \
+            --terragrunt-ignore-dependency-errors \
+            -auto-approve
 
       - name: Destroy VPC
         run: |
@@ -67,8 +68,7 @@ jobs:
 
       - name: Destroy Global
         run: |
-          cd global
-          terragrunt init -upgrade
           terragrunt destroy \
             --terragrunt-non-interactive \
+            --terragrunt-working-dir global \
             -auto-approve
