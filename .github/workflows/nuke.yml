@@ -1,19 +1,7 @@
-############################################
-# .github/workflows/destroy.yml
-#
-# PURPOSE:
-# Destroys ALL infrastructure in correct
-# reverse order. Run manually only.
-#
-# HOW TO RUN:
-# GitHub → Actions → Destroy Infrastructure
-# → Run workflow → confirm
-############################################
-
 name: Destroy Infrastructure
 
 on:
-  workflow_dispatch:        # Manual trigger only — never runs automatically
+  workflow_dispatch:
     inputs:
       confirm:
         description: "Type DESTROY to confirm"
@@ -25,7 +13,7 @@ permissions:
 
 jobs:
   destroy:
-    name: Terragrunt Destroy
+    name: Destroy
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'DESTROY'
 
@@ -52,23 +40,19 @@ jobs:
           aws-region: us-east-1
 
       - name: Destroy EKS
+        working-directory: environments/aws/dev/eks
         run: |
-          terragrunt destroy \
-            --terragrunt-non-interactive \
-            --terragrunt-working-dir environments/aws/dev/eks \
-            --terragrunt-ignore-dependency-errors \
-            -auto-approve
+          terragrunt init
+          terraform destroy -auto-approve
 
       - name: Destroy VPC
+        working-directory: environments/aws/dev/vpc
         run: |
-          terragrunt destroy \
-            --terragrunt-non-interactive \
-            --terragrunt-working-dir environments/aws/dev/vpc \
-            -auto-approve
+          terragrunt init
+          terraform destroy -auto-approve
 
       - name: Destroy Global
+        working-directory: global
         run: |
-          terragrunt destroy \
-            --terragrunt-non-interactive \
-            --terragrunt-working-dir global \
-            -auto-approve
+          terragrunt init
+          terraform destroy -auto-approve
