@@ -1,30 +1,14 @@
-############################################
-# environments/aws/dev/eks/outputs.tf
-# Purpose:
-# - Export EKS values consumed by platform repo
-############################################
-
-output "cluster_name" {
-  description = "EKS cluster name"
-  value       = module.eks.cluster_name
+output "vault_unseal_key_arn" {
+  description = "KMS key ARN for Vault auto-unseal"
+  value       = aws_kms_key.vault_unseal.arn
 }
 
-output "cluster_endpoint" {
-  description = "EKS API endpoint"
-  value       = module.eks.cluster_endpoint
+output "vault_unseal_key_id" {
+  description = "KMS key ID for Vault auto-unseal"
+  value       = aws_kms_key.vault_unseal.key_id
 }
 
-output "oidc_provider_arn" {
-  description = "OIDC provider ARN for IRSA"
-  value       = module.eks.oidc_provider_arn
-}
-
-output "cluster_oidc_issuer_url" {
-  description = "OIDC issuer URL"
-  value       = module.eks.cluster_oidc_issuer_url
-}
-
-output "cluster_security_group_id" {
-  description = "EKS cluster security group ID"
-  value       = module.eks.cluster_security_group_id
+output "vault_unseal_alias" {
+  description = "KMS key alias for Vault auto-unseal"
+  value       = aws_kms_alias.vault_unseal.name
 }
