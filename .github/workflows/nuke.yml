@@ -67,7 +67,8 @@ jobs:
 
       - name: Destroy Global
         run: |
+          cd global
+          terragrunt init -upgrade
           terragrunt destroy \
             --terragrunt-non-interactive \
-            --terragrunt-working-dir global \
             -auto-approve
