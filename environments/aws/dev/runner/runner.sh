@@ -95,12 +95,16 @@ chown -R runner:runner /home/runner/actions-runner
 ############################################
 # Get registration token from GitHub API
 ############################################
+# NEW - repo level (register for both repos)
 REG_TOKEN=$(curl -fsSL \
   -X POST \
   -H "Authorization: token ${github_token}" \
   -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/orgs/${github_org}/actions/runners/registration-token" \
+  "https://api.github.com/repos/${github_org}/${github_repo_infra}/actions/runners/registration-token" \
   | jq -r '.token')
+
+sudo -u runner /home/runner/actions-runner/config.sh \
+  --url "https://github.com/${github_org}/${github_repo_infra}" \
 
 ############################################
 # Register runner with GitHub org
