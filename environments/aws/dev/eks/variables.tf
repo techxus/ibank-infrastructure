@@ -85,9 +85,11 @@ variable "tags" {
 variable "vpc_id" {
   description = "VPC ID from vpc workspace"
   type        = string
+  default     = "vpc-mock"    # ← add default for destroy
 }
 
 variable "private_subnet_ids" {
   description = "Private subnet IDs from vpc workspace"
   type        = list(string)
+  default     = ["subnet-mock-1", "subnet-mock-2"]   # ← add default for destroy
 }
