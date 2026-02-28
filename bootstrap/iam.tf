@@ -203,6 +203,17 @@ resource "aws_iam_role_policy" "github_actions" {
         Effect   = "Allow"
         Action   = ["secretsmanager:*"]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath",
+          "ssm:PutParameter",
+          "ssm:DeleteParameter"
+        ]
+        Resource = "arn:aws:ssm:*:121897425968:parameter/ibank/*"
       }
     ]
   })

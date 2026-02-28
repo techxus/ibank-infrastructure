@@ -24,3 +24,10 @@ resource "aws_kms_alias" "vault_unseal" {
   name          = "alias/ibank-${var.env}-vault-unseal"
   target_key_id = aws_kms_key.vault_unseal.key_id
 }
+
+resource "aws_ssm_parameter" "vault_kms_key_alias" {
+  name  = "/ibank/${var.env}/vault-kms-key-alias"
+  type  = "String"
+  value = aws_kms_alias.vault_unseal.name
+  tags  = var.tags
+}

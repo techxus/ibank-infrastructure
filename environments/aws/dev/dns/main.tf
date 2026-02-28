@@ -52,3 +52,10 @@ resource "aws_acm_certificate_validation" "wildcard" {
   certificate_arn         = aws_acm_certificate.wildcard.arn
   validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
 }
+
+resource "aws_ssm_parameter" "acm_certificate_id" {
+  name  = "/ibank/${var.env}/acm-certificate-id"
+  type  = "String"
+  value = split("/", aws_acm_certificate.wildcard.arn)[1]
+  tags  = var.tags
+}

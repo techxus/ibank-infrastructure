@@ -12,3 +12,8 @@ output "acm_certificate_arn" {
   description = "Validated wildcard ACM certificate ARN"
   value       = aws_acm_certificate_validation.wildcard.certificate_arn
 }
+
+output "acm_certificate_id" {
+  description = "ACM certificate ID"
+  value       = split("/", aws_acm_certificate.wildcard.arn)[1]
+}
