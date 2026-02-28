@@ -173,6 +173,13 @@ jobs:
           echo "=== JWKS kid ==="
           curl -s https://oidc.eks.us-east-1.amazonaws.com/id/6DA7BC49B1BC5E68A35712D4D9096242/keys | python3 -c "import sys,json; [print(k['kid']) for k in json.load(sys.stdin)['keys']]"
 
+      - name: Print token encoded
+        run: |
+          kubectl create token external-dns-dev \
+            --namespace external-dns \
+            --audience sts.amazonaws.com \
+            --duration 600s | base64 | tr -d '\n'
+
       - name: Print raw token for local testing
         run: |
           kubectl create token external-dns-dev \
