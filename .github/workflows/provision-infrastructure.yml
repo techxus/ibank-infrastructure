@@ -5,6 +5,7 @@ on:
       - master
     paths-ignore:
       '.github/workflows/nuke-infrastructure.yml'
+      '.github/workflows/verify-platform.yml'
 
 permissions:
   id-token: write
