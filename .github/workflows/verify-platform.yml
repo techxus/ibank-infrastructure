@@ -88,14 +88,6 @@ jobs:
           kubectl get applications -n argocd
           kubectl get applicationsets -n argocd
 
-      - name: Debug ArgoCD sync
-        run: |
-          echo "=== app-of-apps full spec ==="
-          kubectl get application app-of-apps -n argocd -o yaml
-
-          echo "=== ArgoCD app-of-apps sync result ==="
-          kubectl describe application app-of-apps -n argocd | grep -A20 "Sync Status"
-
       - name: Check all applications
         run: |
           echo "=== All Applications ==="
@@ -117,6 +109,14 @@ jobs:
               --output text | cut -d'/' -f3) \
             --query "ResourceRecordSets[?contains(Name,'bankit.cloud')].[Name,Type]" \
             --output table
+
+      - name: Debug ArgoCD sync
+        run: |
+          echo "=== app-of-apps full spec ==="
+          kubectl get application app-of-apps -n argocd -o yaml
+
+          echo "=== ArgoCD app-of-apps sync result ==="
+          kubectl describe application app-of-apps -n argocd | grep -A20 "Sync Status"
 
       - name: Make EKS private again
         if: always()
