@@ -88,6 +88,17 @@ jobs:
           kubectl get applications -n argocd
           kubectl get applicationsets -n argocd
 
+      - name: Check external-dns service account
+        run: |
+          echo "=== Service Account ==="
+          kubectl get serviceaccount -n external-dns
+          
+          echo "=== Service Account details ==="
+          kubectl get serviceaccount external-dns-dev -n external-dns -o yaml
+          
+          echo "=== Pod details ==="
+          kubectl get pods -n external-dns -o yaml | grep -A5 "serviceAccount"
+
       - name: Check all applications
         run: |
           echo "=== All Applications ==="
