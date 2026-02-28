@@ -167,23 +167,11 @@ jobs:
 
       - name: Decode token header
         run: |
-          TOKEN=$(kubectl create token external-dns-dev \
-            --namespace external-dns \
-            --audience sts.amazonaws.com \
-            --duration 600s)
-          
-          echo "=== TOKEN HEADER (signing key kid) ==="
-          echo "$TOKEN" | cut -d. -f1 | \
-            python3 -c "
-  import sys, base64, json
-  data = sys.stdin.read().strip()
-  padding = 4 - len(data) % 4
-  decoded = base64.urlsafe_b64decode(data + '=' * padding)
-  print(json.dumps(json.loads(decoded), indent=2))
-  "
+          TOKEN=$(kubectl create token external-dns-dev --namespace external-dns --audience sts.amazonaws.com --duration 600s)
+          echo "=== TOKEN HEADER ==="
+          echo "$TOKEN" | cut -d. -f1 | python3 -c "import sys,base64,json; d=sys.stdin.read().strip(); print(json.dumps(json.loads(base64.urlsafe_b64decode(d+'==')),indent=2))"
           echo "=== JWKS kid ==="
-  curl -s https://oidc.eks.us-east-1.amazonaws.com/id/6DA7BC49B1BC5E68A35712D4D9096242/keys | \
-  python3 -c "import sys,json; data=json.load(sys.stdin); [print(k['kid']) for k in data['keys']]"
+          curl -s https://oidc.eks.us-east-1.amazonaws.com/id/6DA7BC49B1BC5E68A35712D4D9096242/keys | python3 -c "import sys,json; [print(k['kid']) for k in json.load(sys.stdin)['keys']]"
 
       - name: Test IRSA manually
         run: |
