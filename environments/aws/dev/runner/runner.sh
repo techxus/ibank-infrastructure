@@ -118,8 +118,8 @@ sudo -u runner /home/runner/actions-runner-infra/config.sh \
   --replace
 
 cd /home/runner/actions-runner-infra
-sudo -u runner ./svc.sh install
-sudo -u runner ./svc.sh start
+sudo ./svc.sh install
+sudo ./svc.sh start
 
 ############################################
 # Register runner for ibank-platform
@@ -150,7 +150,7 @@ sudo -u runner /home/runner/actions-runner-platform/config.sh \
   --replace
 
 cd /home/runner/actions-runner-platform
-sudo -u runner ./svc.sh install
-sudo -u runner ./svc.sh start
+sudo ./svc.sh install
+sudo ./svc.sh start
 
 echo "GitHub Actions runners setup complete"
