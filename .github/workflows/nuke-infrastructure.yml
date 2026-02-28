@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type DESTROY to confirm"
+        description: "This will delete ALL EKS Resources.Type DESTROY to confirm"
         required: true
 
 permissions:

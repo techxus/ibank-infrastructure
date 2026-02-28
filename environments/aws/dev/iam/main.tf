@@ -225,7 +225,7 @@ resource "aws_iam_role" "external_dns" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${var.cluster_oidc_issuer_url}:sub" = "system:serviceaccount:external-dns:external-dns"
+          "${var.cluster_oidc_issuer_url}:sub" = "system:serviceaccount:external-dns:external-dns-dev"
           "${var.cluster_oidc_issuer_url}:aud" = "sts.amazonaws.com"
         }
       }
@@ -251,7 +251,8 @@ resource "aws_iam_role_policy" "external_dns" {
         Effect = "Allow"
         Action = [
           "route53:ListHostedZones",
-          "route53:ListResourceRecordSets"
+          "route53:ListResourceRecordSets",
+          "route53:ListTagsForResource"
         ]
         Resource = "*"
       }

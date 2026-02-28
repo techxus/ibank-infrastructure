@@ -12,3 +12,7 @@ output "vault_role_arn" {
   description = "IRSA role ARN for Vault"
   value       = aws_iam_role.vault.arn
 }
+
+output "external_dns_role_arn" {
+  value = aws_iam_role.external_dns.arn
+}
