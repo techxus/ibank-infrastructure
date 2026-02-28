@@ -117,6 +117,8 @@ sudo -u runner /home/runner/actions-runner-infra/config.sh \
   --unattended \
   --replace
 
+chown -R runner:runner /home/runner/actions-runner-infra
+
 cd /home/runner/actions-runner-infra
 sudo ./svc.sh install
 sudo ./svc.sh start
