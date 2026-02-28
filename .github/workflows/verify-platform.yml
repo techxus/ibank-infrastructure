@@ -46,29 +46,28 @@ jobs:
         run: |
           echo "=== ArgoCD Applications ==="
           kubectl get applications -n argocd
-
-          echo "=== ArgoCD ApplicationSets ==="
+          
+          echo "=== ApplicationSets ==="
           kubectl get applicationsets -n argocd
-
-          echo "=== app-of-apps details ==="
-          kubectl describe application app-of-apps -n argocd
-
-          echo "=== ArgoCD repo server logs ==="
-          kubectl logs -n argocd \
-            deployment/argocd-repo-server \
-            --tail=50
-
+          
           echo "=== ALB Controller ==="
-          kubectl get pods -n kube-system | grep alb
-
+          kubectl get pods -n kube-system | grep -i alb || echo "ALB CONTROLLER NOT FOUND"
+          
+          echo "=== ALB Controller logs ==="
+          kubectl logs -n kube-system \
+            -l app.kubernetes.io/name=aws-load-balancer-controller \
+            --tail=30 || echo "NO LOGS"
+          
           echo "=== external-dns ==="
           kubectl get pods -n external-dns || echo "NOT INSTALLED"
-
-          echo "=== Vault ==="
-          kubectl get pods -n vault || echo "NOT INSTALLED"
-
+          
           echo "=== Ingress ==="
           kubectl get ingress --all-namespaces
+          
+          echo "=== ArgoCD app-of-apps patch ==="
+          kubectl patch application app-of-apps -n argocd \
+            --type merge \
+            -p '{"spec":{"source":{"targetRevision":"master"}}}'
 
       - name: Force sync app-of-apps
         run: |
