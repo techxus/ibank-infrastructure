@@ -165,6 +165,19 @@ jobs:
           echo "=== Pod volumeMounts ==="
           kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.containers[0].volumeMounts}' | python3 -m json.tool || true
 
+      - name: Test IRSA manually
+        run: |
+          TOKEN=$(kubectl create token external-dns-dev \
+            --namespace external-dns \
+            --audience sts.amazonaws.com \
+            --duration 600s)
+          
+          aws sts assume-role-with-web-identity \
+            --role-arn arn:aws:iam::121897425968:role/ibank-dev-external-dns \
+            --role-session-name test-irsa \
+            --web-identity-token "$TOKEN" \
+            --duration-seconds 900 2>&1 || true
+
       - name: Debug ArgoCD sync
         run: |
           echo "=== app-of-apps full spec ==="
