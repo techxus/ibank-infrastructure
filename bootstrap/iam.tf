@@ -213,9 +213,10 @@ resource "aws_iam_role_policy" "github_actions" {
           "ssm:PutParameter",
           "ssm:DeleteParameter",
           "ssm:AddTagsToResource",
-          "ssm:ListTagsForResource"
+          "ssm:ListTagsForResource",
+          "ssm:DescribeParameters"
         ]
-        Resource = "arn:aws:ssm:*:121897425968:parameter/ibank/*"
+        Resource = "*"
       }
     ]
   })
