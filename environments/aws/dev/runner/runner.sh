@@ -89,42 +89,68 @@ chown -R runner:runner /home/runner/.kube
 RUNNER_VERSION=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
   | jq -r '.tag_name' | sed 's/v//')
 
-mkdir -p /home/runner/actions-runner
-cd /home/runner/actions-runner
+############################################
+# Register runner for ibank-infrastructure
+############################################
+mkdir -p /home/runner/actions-runner-infra
+cd /home/runner/actions-runner-infra
 
 curl -fsSL \
   "https://github.com/actions/runner/releases/download/v$${RUNNER_VERSION}/actions-runner-linux-x64-$${RUNNER_VERSION}.tar.gz" \
   -o runner.tar.gz
 tar xzf runner.tar.gz
 rm runner.tar.gz
-chown -R runner:runner /home/runner/actions-runner
+chown -R runner:runner /home/runner/actions-runner-infra
 
-############################################
-# Get registration token from GitHub API
-############################################
-REG_TOKEN=$(curl -fsSL \
+REG_TOKEN_INFRA=$(curl -fsSL \
   -X POST \
   -H "Authorization: token ${github_token}" \
   -H "Accept: application/vnd.github.v3+json" \
   "https://api.github.com/repos/${github_org}/${github_repo_infra}/actions/runners/registration-token" \
   | jq -r '.token')
 
-############################################
-# Register runner with GitHub repo
-############################################
-sudo -u runner /home/runner/actions-runner/config.sh \
+sudo -u runner /home/runner/actions-runner-infra/config.sh \
   --url "https://github.com/${github_org}/${github_repo_infra}" \
-  --token "$REG_TOKEN" \
-  --name "ibank-${env}-runner-$(hostname)" \
+  --token "$REG_TOKEN_INFRA" \
+  --name "ibank-${env}-infra-runner-$(hostname)" \
   --labels "ibank,${env},eks,aws" \
   --unattended \
   --replace
 
-############################################
-# Install and start runner as systemd service
-############################################
-cd /home/runner/actions-runner
-./svc.sh install runner
-./svc.sh start
+cd /home/runner/actions-runner-infra
+sudo ./svc.sh install runner-infra
+sudo ./svc.sh start runner-infra
 
-echo "GitHub Actions runner setup complete"
+############################################
+# Register runner for ibank-platform
+############################################
+mkdir -p /home/runner/actions-runner-platform
+cd /home/runner/actions-runner-platform
+
+curl -fsSL \
+  "https://github.com/actions/runner/releases/download/v$${RUNNER_VERSION}/actions-runner-linux-x64-$${RUNNER_VERSION}.tar.gz" \
+  -o runner.tar.gz
+tar xzf runner.tar.gz
+rm runner.tar.gz
+chown -R runner:runner /home/runner/actions-runner-platform
+
+REG_TOKEN_PLATFORM=$(curl -fsSL \
+  -X POST \
+  -H "Authorization: token ${github_token}" \
+  -H "Accept: application/vnd.github.v3+json" \
+  "https://api.github.com/repos/${github_org}/${github_repo_platform}/actions/runners/registration-token" \
+  | jq -r '.token')
+
+sudo -u runner /home/runner/actions-runner-platform/config.sh \
+  --url "https://github.com/${github_org}/${github_repo_platform}" \
+  --token "$REG_TOKEN_PLATFORM" \
+  --name "ibank-${env}-platform-runner-$(hostname)" \
+  --labels "ibank,${env},eks,aws" \
+  --unattended \
+  --replace
+
+cd /home/runner/actions-runner-platform
+sudo ./svc.sh install runner-platform
+sudo ./svc.sh start runner-platform
+
+echo "GitHub Actions runners setup complete"
