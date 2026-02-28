@@ -70,6 +70,25 @@ jobs:
           echo "=== Ingress ==="
           kubectl get ingress --all-namespaces
 
+      - name: Force sync app-of-apps
+        run: |
+          # Install ArgoCD CLI
+          curl -sSL -o /usr/local/bin/argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+          # Patch app-of-apps directly
+          kubectl patch application app-of-apps -n argocd \
+            --type merge \
+            -p '{"spec":{"source":{"targetRevision":"master"}}}'
+
+          echo "Waiting for ArgoCD to sync..."
+          sleep 30
+
+          echo "=== Applications after patch ==="
+          kubectl get applications -n argocd
+          kubectl get applicationsets -n argocd
+
       - name: Make EKS private again
         if: always()
         run: |
