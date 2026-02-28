@@ -142,6 +142,20 @@ jobs:
           kubectl rollout restart deployment/external-dns-dev -n external-dns
           kubectl rollout status deployment/external-dns-dev -n external-dns --timeout=60s
 
+      - name: Check IRSA webhook
+        run: |
+          echo "=== Mutating Webhooks ==="
+          kubectl get mutatingwebhookconfigurations
+          
+          echo "=== Pod full spec (volumes) ==="
+          kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.volumes}' | python3 -m json.tool || true
+          
+          echo "=== Pod full spec (env) ==="
+          kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.containers[0].env}' | python3 -m json.tool || true
+          
+          echo "=== Pod volumeMounts ==="
+          kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.containers[0].volumeMounts}' | python3 -m json.tool || true
+
       - name: Debug ArgoCD sync
         run: |
           echo "=== app-of-apps full spec ==="
