@@ -96,6 +96,28 @@ jobs:
           echo "=== ArgoCD app-of-apps sync result ==="
           kubectl describe application app-of-apps -n argocd | grep -A20 "Sync Status"
 
+      - name: Check all applications
+        run: |
+          echo "=== All Applications ==="
+          kubectl get applications -n argocd
+          
+          echo "=== external-dns pods ==="
+          kubectl get pods -n external-dns
+          
+          echo "=== Vault pods ==="
+          kubectl get pods -n vault || echo "NOT INSTALLED"
+          
+          echo "=== Ingress with ADDRESS ==="
+          kubectl get ingress --all-namespaces
+          
+          echo "=== Route53 records ==="
+          aws route53 list-resource-record-sets \
+            --hosted-zone-id $(aws route53 list-hosted-zones \
+              --query "HostedZones[?Name=='bankit.cloud.'].Id" \
+              --output text | cut -d'/' -f3) \
+            --query "ResourceRecordSets[?contains(Name,'bankit.cloud')].[Name,Type]" \
+            --output table
+
       - name: Make EKS private again
         if: always()
         run: |
