@@ -88,6 +88,16 @@ jobs:
           kubectl get applications -n argocd
           kubectl get applicationsets -n argocd
 
+      - name: Check external-dns token injection
+        run: |
+          POD=$(kubectl get pod -n external-dns -o jsonpath='{.items[0].metadata.name}')
+          
+          echo "=== AWS env vars in pod ==="
+          kubectl exec -n external-dns $POD -- env | grep -E 'AWS|TOKEN' || echo "No AWS env vars found"
+          
+          echo "=== Token file check ==="
+          kubectl exec -n external-dns $POD -- ls /var/run/secrets/eks.amazonaws.com/serviceaccount/ || echo "No IRSA token directory"
+
       - name: Check external-dns service account
         run: |
           echo "=== Service Account ==="
