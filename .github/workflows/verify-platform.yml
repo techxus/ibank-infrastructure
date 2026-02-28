@@ -32,7 +32,6 @@ jobs:
             --resources-vpc-config \
             endpointPublicAccess=true,endpointPrivateAccess=true \
             --region us-east-1
-
           echo "Waiting for endpoint..."
           sleep 90
 
@@ -42,87 +41,40 @@ jobs:
             --name ibank-dev-eks \
             --region us-east-1
 
-      - name: Check platform status
+      - name: Cluster info
         run: |
-          echo "=== ArgoCD Applications ==="
+          echo "=== Nodes ==="
+          kubectl get nodes
+
+          echo "=== OIDC Issuer ==="
+          aws eks describe-cluster --name ibank-dev-eks \
+            --query 'cluster.identity.oidc.issuer' --output text
+
+          echo "=== OIDC Providers in IAM ==="
+          aws iam list-open-id-connect-providers
+
+      - name: ArgoCD status
+        run: |
+          echo "=== Applications ==="
           kubectl get applications -n argocd
-          
+
           echo "=== ApplicationSets ==="
           kubectl get applicationsets -n argocd
-          
+
+          echo "=== ArgoCD pods ==="
+          kubectl get pods -n argocd
+
+      - name: Platform components
+        run: |
           echo "=== ALB Controller ==="
-          kubectl get pods -n kube-system | grep -i alb || echo "ALB CONTROLLER NOT FOUND"
-          
-          echo "=== ALB Controller logs ==="
-          kubectl logs -n kube-system \
-            -l app.kubernetes.io/name=aws-load-balancer-controller \
-            --tail=30 || echo "NO LOGS"
-          
+          kubectl get pods -n kube-system | grep -i alb || echo "NOT FOUND"
+
           echo "=== external-dns ==="
           kubectl get pods -n external-dns || echo "NOT INSTALLED"
-          
+
           echo "=== Ingress ==="
           kubectl get ingress --all-namespaces
-          
-          echo "=== ArgoCD app-of-apps patch ==="
-          kubectl patch application app-of-apps -n argocd \
-            --type merge \
-            -p '{"spec":{"source":{"targetRevision":"master"}}}'
 
-      - name: Force sync app-of-apps
-        run: |
-          # Install ArgoCD CLI
-          curl -sSL -o /usr/local/bin/argocd \
-            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          chmod +x /usr/local/bin/argocd
-
-          # Patch app-of-apps directly
-          kubectl patch application app-of-apps -n argocd \
-            --type merge \
-            -p '{"spec":{"source":{"targetRevision":"master"}}}'
-
-          echo "Waiting for ArgoCD to sync..."
-          sleep 30
-
-          echo "=== Applications after patch ==="
-          kubectl get applications -n argocd
-          kubectl get applicationsets -n argocd
-
-      - name: Check external-dns token injection
-        run: |
-          POD=$(kubectl get pod -n external-dns -o jsonpath='{.items[0].metadata.name}')
-          
-          echo "=== AWS env vars in pod ==="
-          kubectl exec -n external-dns $POD -- env | grep -E 'AWS|TOKEN' || echo "No AWS env vars found"
-          
-          echo "=== Token file check ==="
-          kubectl exec -n external-dns $POD -- ls /var/run/secrets/eks.amazonaws.com/serviceaccount/ || echo "No IRSA token directory"
-
-      - name: Check external-dns service account
-        run: |
-          echo "=== Service Account ==="
-          kubectl get serviceaccount -n external-dns
-          
-          echo "=== Service Account details ==="
-          kubectl get serviceaccount external-dns-dev -n external-dns -o yaml
-          
-          echo "=== Pod details ==="
-          kubectl get pods -n external-dns -o yaml | grep -A5 "serviceAccount"
-
-      - name: Check all applications
-        run: |
-          echo "=== All Applications ==="
-          kubectl get applications -n argocd
-          
-          echo "=== external-dns pods ==="
-          kubectl get pods -n external-dns
-          
-          echo "=== Vault pods ==="
-          kubectl get pods -n vault || echo "NOT INSTALLED"
-          
-          echo "=== Ingress with ADDRESS ==="
-          kubectl get ingress --all-namespaces
-          
           echo "=== Route53 records ==="
           aws route53 list-resource-record-sets \
             --hosted-zone-id $(aws route53 list-hosted-zones \
@@ -131,88 +83,31 @@ jobs:
             --query "ResourceRecordSets[?contains(Name,'bankit.cloud')].[Name,Type]" \
             --output table
 
-      - name: external-dns logs
+      - name: Test IRSA
         run: |
-          kubectl logs -n external-dns \
-            deployment/external-dns-dev \
-            --tail=30
+          echo "=== Service Account ==="
+          kubectl get serviceaccount external-dns-dev -n external-dns -o yaml
 
-      - name: Restart external-dns to pick up new IAM role
-        run: |
-          kubectl rollout restart deployment/external-dns-dev -n external-dns
-          kubectl rollout status deployment/external-dns-dev -n external-dns --timeout=60s
-
-      - name: Decode service account token
-        run: |
-          echo "=== Create and decode token ==="
+          echo "=== Token claims ==="
           kubectl create token external-dns-dev \
             --namespace external-dns \
             --audience sts.amazonaws.com \
             --duration 600s | cut -d. -f2 | \
-            python3 -c "import sys,base64,json; data=sys.stdin.read().strip(); padded=data+'=='*3; decoded=base64.urlsafe_b64decode(padded[:len(padded)-len(padded)%4]); print(json.dumps(json.loads(decoded),indent=2))"
+            python3 -c "import sys,base64,json; d=sys.stdin.read().strip(); p=d+'=='*3; print(json.dumps(json.loads(base64.urlsafe_b64decode(p[:len(p)-len(p)%4])),indent=2))"
 
-      - name: Check IRSA webhook
-        run: |
-          echo "=== Mutating Webhooks ==="
-          kubectl get mutatingwebhookconfigurations
-          
-          echo "=== Pod full spec (volumes) ==="
-          kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.volumes}' | python3 -m json.tool || true
-          
-          echo "=== Pod full spec (env) ==="
-          kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.containers[0].env}' | python3 -m json.tool || true
-          
-          echo "=== Pod volumeMounts ==="
-          kubectl get pod -n external-dns -o jsonpath='{.items[0].spec.containers[0].volumeMounts}' | python3 -m json.tool || true
-
-      - name: Decode token header
-        run: |
-          TOKEN=$(kubectl create token external-dns-dev --namespace external-dns --audience sts.amazonaws.com --duration 600s)
-          echo "=== TOKEN HEADER ==="
-          echo "$TOKEN" | cut -d. -f1 | python3 -c "import sys,base64,json; d=sys.stdin.read().strip(); print(json.dumps(json.loads(base64.urlsafe_b64decode(d+'==')),indent=2))"
-          echo "=== JWKS kid ==="
-          curl -s https://oidc.eks.us-east-1.amazonaws.com/id/6DA7BC49B1BC5E68A35712D4D9096242/keys | python3 -c "import sys,json; [print(k['kid']) for k in json.load(sys.stdin)['keys']]"
-
-      - name: Print token encoded
-        run: |
-          kubectl create token external-dns-dev \
-            --namespace external-dns \
-            --audience sts.amazonaws.com \
-            --duration 600s | base64 | tr -d '\n'
-
-      - name: Print raw token for local testing
-        run: |
-          kubectl create token external-dns-dev \
-            --namespace external-dns \
-            --audience sts.amazonaws.com \
-            --duration 600s
-
-      - name: Test IRSA manually
-        run: |
+          echo "=== STS AssumeRoleWithWebIdentity ==="
           TOKEN=$(kubectl create token external-dns-dev \
             --namespace external-dns \
             --audience sts.amazonaws.com \
             --duration 600s)
-          
           aws sts assume-role-with-web-identity \
             --role-arn arn:aws:iam::121897425968:role/ibank-dev-external-dns \
             --role-session-name test-irsa \
             --web-identity-token "$TOKEN" \
-            --duration-seconds 900 2>&1 || true
+            --duration-seconds 900
 
-      - name: Debug ArgoCD sync
+      - name: external-dns logs
         run: |
-          echo "=== app-of-apps full spec ==="
-          kubectl get application app-of-apps -n argocd -o yaml
-
-          echo "=== ArgoCD app-of-apps sync result ==="
-          kubectl describe application app-of-apps -n argocd | grep -A20 "Sync Status"
-
-#      - name: Make EKS private again
-#        if: always()
-#        run: |
-#          aws eks update-cluster-config \
-#            --name ibank-dev-eks \
-#            --resources-vpc-config \
-#            endpointPublicAccess=false,endpointPrivateAccess=true \
-#            --region us-east-1
+          kubectl logs -n external-dns \
+            deployment/external-dns-dev \
+            --tail=50
