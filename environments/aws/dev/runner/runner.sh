@@ -2,13 +2,13 @@
 set -e
 
 ############################################
-# user_data.sh
+# runner.sh
 #
 # Runs on EC2 startup to:
 # 1. Install tools (kubectl, helm, aws cli, terragrunt)
 # 2. Configure kubectl for EKS
-# 3. Register GitHub Actions runner
-# 4. Start runner as systemd service
+# 3. Register GitHub Actions runners for both repos
+# 4. Start runners as systemd services
 ############################################
 
 # Update and install dependencies
@@ -84,7 +84,7 @@ cp /root/.kube/config /home/runner/.kube/config
 chown -R runner:runner /home/runner/.kube
 
 ############################################
-# Install GitHub Actions runner
+# Get runner version
 ############################################
 RUNNER_VERSION=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
   | jq -r '.tag_name' | sed 's/v//')
@@ -102,28 +102,6 @@ tar xzf runner.tar.gz
 rm runner.tar.gz
 chown -R runner:runner /home/runner/actions-runner-infra
 
-REG_TOKEN_INFRA=$(curl -fsSL \
-  -X POST \
-  -H "Authorization: token ${github_token}" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/${github_org}/${github_repo_infra}/actions/runners/registration-token" \
-  | jq -r '.token')
-
-sudo -u runner /home/runner/actions-runner-infra/config.sh \
-  --url "https://github.com/${github_org}/${github_repo_infra}" \
-  --token "$REG_TOKEN_INFRA" \
-  --name "ibank-${env}-infra-runner-$(hostname)" \
-  --labels "ibank,${env},eks,aws" \
-  --unattended \
-  --replace
-
-cd /home/runner/actions-runner-infra
-sudo ./svc.sh install
-sudo ./svc.sh start
-
-############################################
-# Register runner for ibank-infrastructure
-############################################
 REG_TOKEN_INFRA=$(curl -fsSL \
   -X POST \
   -H "Authorization: token ${github_token}" \
@@ -165,6 +143,16 @@ systemctl start github-runner-infra
 ############################################
 # Register runner for ibank-platform
 ############################################
+mkdir -p /home/runner/actions-runner-platform
+cd /home/runner/actions-runner-platform
+
+curl -fsSL \
+  "https://github.com/actions/runner/releases/download/v$${RUNNER_VERSION}/actions-runner-linux-x64-$${RUNNER_VERSION}.tar.gz" \
+  -o runner.tar.gz
+tar xzf runner.tar.gz
+rm runner.tar.gz
+chown -R runner:runner /home/runner/actions-runner-platform
+
 REG_TOKEN_PLATFORM=$(curl -fsSL \
   -X POST \
   -H "Authorization: token ${github_token}" \
@@ -179,6 +167,8 @@ sudo -u runner /home/runner/actions-runner-platform/config.sh \
   --labels "ibank,${env},eks,aws" \
   --unattended \
   --replace
+
+chown -R runner:runner /home/runner/actions-runner-platform
 
 cat > /etc/systemd/system/github-runner-platform.service << EOF
 [Unit]
