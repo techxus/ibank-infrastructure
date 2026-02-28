@@ -22,5 +22,6 @@ inputs = merge(
   {
     vpc_id             = dependency.vpc.outputs.vpc_id
     private_subnet_ids = dependency.vpc.outputs.private_subnet_ids
+    cluster_endpoint_public_access = false
   }
 )
