@@ -116,6 +116,11 @@ jobs:
             deployment/external-dns-dev \
             --tail=30
 
+      - name: Restart external-dns to pick up new IAM role
+        run: |
+          kubectl rollout restart deployment/external-dns-dev -n external-dns
+          kubectl rollout status deployment/external-dns-dev -n external-dns --timeout=60s
+
       - name: Debug ArgoCD sync
         run: |
           echo "=== app-of-apps full spec ==="
