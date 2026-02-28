@@ -122,18 +122,47 @@ sudo ./svc.sh install
 sudo ./svc.sh start
 
 ############################################
+# Register runner for ibank-infrastructure
+############################################
+REG_TOKEN_INFRA=$(curl -fsSL \
+  -X POST \
+  -H "Authorization: token ${github_token}" \
+  -H "Accept: application/vnd.github.v3+json" \
+  "https://api.github.com/repos/${github_org}/${github_repo_infra}/actions/runners/registration-token" \
+  | jq -r '.token')
+
+sudo -u runner /home/runner/actions-runner-infra/config.sh \
+  --url "https://github.com/${github_org}/${github_repo_infra}" \
+  --token "$REG_TOKEN_INFRA" \
+  --name "ibank-${env}-infra-runner-$(hostname)" \
+  --labels "ibank,${env},eks,aws" \
+  --unattended \
+  --replace
+
+cat > /etc/systemd/system/github-runner-infra.service << EOF
+[Unit]
+Description=GitHub Actions Runner - ibank-infrastructure
+After=network.target
+
+[Service]
+Type=simple
+User=runner
+WorkingDirectory=/home/runner/actions-runner-infra
+ExecStart=/home/runner/actions-runner-infra/run.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable github-runner-infra
+systemctl start github-runner-infra
+
+############################################
 # Register runner for ibank-platform
 ############################################
-mkdir -p /home/runner/actions-runner-platform
-cd /home/runner/actions-runner-platform
-
-curl -fsSL \
-  "https://github.com/actions/runner/releases/download/v$${RUNNER_VERSION}/actions-runner-linux-x64-$${RUNNER_VERSION}.tar.gz" \
-  -o runner.tar.gz
-tar xzf runner.tar.gz
-rm runner.tar.gz
-chown -R runner:runner /home/runner/actions-runner-platform
-
 REG_TOKEN_PLATFORM=$(curl -fsSL \
   -X POST \
   -H "Authorization: token ${github_token}" \
@@ -149,8 +178,25 @@ sudo -u runner /home/runner/actions-runner-platform/config.sh \
   --unattended \
   --replace
 
-cd /home/runner/actions-runner-platform
-sudo ./svc.sh install
-sudo ./svc.sh start
+cat > /etc/systemd/system/github-runner-platform.service << EOF
+[Unit]
+Description=GitHub Actions Runner - ibank-platform
+After=network.target
+
+[Service]
+Type=simple
+User=runner
+WorkingDirectory=/home/runner/actions-runner-platform
+ExecStart=/home/runner/actions-runner-platform/run.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable github-runner-platform
+systemctl start github-runner-platform
 
 echo "GitHub Actions runners setup complete"
