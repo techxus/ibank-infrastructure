@@ -142,6 +142,15 @@ jobs:
           kubectl rollout restart deployment/external-dns-dev -n external-dns
           kubectl rollout status deployment/external-dns-dev -n external-dns --timeout=60s
 
+      - name: Decode service account token
+        run: |
+          echo "=== Create and decode token ==="
+          kubectl create token external-dns-dev \
+            --namespace external-dns \
+            --audience sts.amazonaws.com \
+            --duration 600s | cut -d. -f2 | \
+            python3 -c "import sys,base64,json; data=sys.stdin.read().strip(); padded=data+'=='*3; decoded=base64.urlsafe_b64decode(padded[:len(padded)-len(padded)%4]); print(json.dumps(json.loads(decoded),indent=2))"
+
       - name: Check IRSA webhook
         run: |
           echo "=== Mutating Webhooks ==="
