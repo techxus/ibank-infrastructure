@@ -207,3 +207,54 @@ resource "aws_iam_role_policy" "vault" {
     }]
   })
 }
+
+############################################
+# external-dns IRSA role
+# Allows external-dns to manage Route53
+############################################
+resource "aws_iam_role" "external_dns" {
+  name = "ibank-${var.env}-external-dns"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = var.oidc_provider_arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${var.cluster_oidc_issuer_url}:sub" = "system:serviceaccount:external-dns:external-dns"
+          "${var.cluster_oidc_issuer_url}:aud" = "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy" "external_dns" {
+  name = "ibank-${var.env}-external-dns-policy"
+  role = aws_iam_role.external_dns.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["route53:ChangeResourceRecordSets"]
+        Resource = "arn:aws:route53:::hostedzone/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZones",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
