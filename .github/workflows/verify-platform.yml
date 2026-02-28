@@ -1,0 +1,80 @@
+name: Verify Platform
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify:
+    name: Verify Platform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Install kubectl
+        run: |
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl
+          chmod +x /usr/local/bin/kubectl
+
+      - name: Make EKS public temporarily
+        run: |
+          aws eks update-cluster-config \
+            --name ibank-dev-eks \
+            --resources-vpc-config \
+            endpointPublicAccess=true,endpointPrivateAccess=true \
+            --region us-east-1
+
+          echo "Waiting for endpoint..."
+          sleep 90
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --name ibank-dev-eks \
+            --region us-east-1
+
+      - name: Check platform status
+        run: |
+          echo "=== ArgoCD Applications ==="
+          kubectl get applications -n argocd
+
+          echo "=== ArgoCD ApplicationSets ==="
+          kubectl get applicationsets -n argocd
+
+          echo "=== app-of-apps details ==="
+          kubectl describe application app-of-apps -n argocd
+
+          echo "=== ArgoCD repo server logs ==="
+          kubectl logs -n argocd \
+            deployment/argocd-repo-server \
+            --tail=50
+
+          echo "=== ALB Controller ==="
+          kubectl get pods -n kube-system | grep alb
+
+          echo "=== external-dns ==="
+          kubectl get pods -n external-dns || echo "NOT INSTALLED"
+
+          echo "=== Vault ==="
+          kubectl get pods -n vault || echo "NOT INSTALLED"
+
+          echo "=== Ingress ==="
+          kubectl get ingress --all-namespaces
+
+      - name: Make EKS private again
+        if: always()
+        run: |
+          aws eks update-cluster-config \
+            --name ibank-dev-eks \
+            --resources-vpc-config \
+            endpointPublicAccess=false,endpointPrivateAccess=true \
+            --region us-east-1
