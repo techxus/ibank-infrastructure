@@ -1,14 +1,17 @@
 ############################################
 # modules/aws/eks/outputs.tf
+# Purpose:
+# - Expose values other stacks need (like ALB Controller IRSA)
 ############################################
 
 output "oidc_provider" {
-  description = "OIDC issuer host/path WITHOUT https:// (for IRSA conditions)."
-  value       = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
+  description = "OIDC issuer host/path WITHOUT https:// (convenient for IRSA conditions)."
+  value       = module.eks.oidc_provider
 }
 
 output "oidc_provider_arn" {
-  value = aws_iam_openid_connect_provider.this.arn
+  description = "ARN of the OIDC provider."
+  value       = module.eks.oidc_provider_arn
 }
 
 output "cluster_oidc_issuer_url" {

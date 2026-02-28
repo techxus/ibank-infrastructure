@@ -1,5 +1,11 @@
 ############################################
 # modules/aws/eks/main.tf
+# Purpose:
+# - Create an EKS cluster and managed node groups (AWS resources only).
+#
+# Student notes:
+# - Modules should NOT define provider blocks inside them in modern Terraform.
+# - Providers are configured in the ROOT (env) folder and passed in automatically.
 ############################################
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
@@ -15,10 +21,6 @@ module "eks" {
 
   vpc_id     = var.vpc_id
   subnet_ids = var.private_subnet_ids
-
-  # Disable the module's OIDC provider creation
-  # We manage it ourselves to control the thumbprint
-  create_iam_openid_connect_provider = false
 
   eks_managed_node_group_defaults = {
     ami_type = var.ami_type
@@ -42,24 +44,4 @@ module "eks" {
   }
 
   tags = var.tags
-}
-
-############################################
-# OIDC Provider - managed explicitly
-# AWS EKS thumbprint for us-east-1:
-# 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
-# The community module computes the wrong
-# thumbprint via tls_certificate data source.
-# AWS actually ignores thumbprint for EKS
-# OIDC providers but it must be syntactically
-# valid so we hardcode the correct AWS root CA.
-############################################
-resource "aws_iam_openid_connect_provider" "this" {
-  url             = module.eks.cluster_oidc_issuer_url
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
-
-  tags = merge(var.tags, {
-    Name = "${var.cluster_name}-eks-irsa"
-  })
 }
