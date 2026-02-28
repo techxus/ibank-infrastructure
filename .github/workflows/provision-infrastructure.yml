@@ -139,3 +139,71 @@ jobs:
           git diff --staged --quiet || \
             git commit -m "chore: auto-generate environment configs from SSM"
           git push
+
+  verify-platform:
+    name: Verify Platform
+    runs-on: ubuntu-latest
+    needs: generate-platform-config
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Install kubectl
+        run: |
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl
+          chmod +x /usr/local/bin/kubectl
+
+      - name: Make EKS public temporarily
+        run: |
+          aws eks update-cluster-config \
+            --name ibank-dev-eks \
+            --resources-vpc-config \
+            endpointPublicAccess=true,endpointPrivateAccess=true \
+            --region us-east-1
+          echo "Waiting for endpoint..."
+          sleep 90
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --name ibank-dev-eks \
+            --region us-east-1
+
+      - name: Check platform status
+        run: |
+          echo "=== ArgoCD Applications ==="
+          kubectl get applications -n argocd
+          
+          echo "=== ArgoCD ApplicationSets ==="
+          kubectl get applicationsets -n argocd
+          
+          echo "=== external-dns ==="
+          kubectl get pods -n external-dns || echo "NOT INSTALLED"
+          
+          echo "=== Vault ==="
+          kubectl get pods -n vault || echo "NOT INSTALLED"
+          
+          echo "=== Ingress ==="
+          kubectl get ingress --all-namespaces
+          
+          echo "=== Route53 check ==="
+          aws route53 list-resource-record-sets \
+            --hosted-zone-id $(aws route53 list-hosted-zones \
+              --query "HostedZones[?Name=='bankit.cloud.'].Id" \
+              --output text | cut -d'/' -f3) \
+            --query "ResourceRecordSets[?contains(Name,'argocd')]" \
+            --output json
+
+      - name: Make EKS private again
+        if: always()
+        run: |
+          aws eks update-cluster-config \
+            --name ibank-dev-eks \
+            --resources-vpc-config \
+            endpointPublicAccess=false,endpointPrivateAccess=true \
+            --region us-east-1
