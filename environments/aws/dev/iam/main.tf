@@ -225,7 +225,7 @@ resource "aws_iam_role" "external_dns" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${var.cluster_oidc_issuer_url}:sub" = "system:serviceaccount:external-dns:external-dns-dev"
+          "${var.cluster_oidc_issuer_url}:sub" = "system:serviceaccount:external-dns:external-dns-${var.env}"
           "${var.cluster_oidc_issuer_url}:aud" = "sts.amazonaws.com"
         }
       }
