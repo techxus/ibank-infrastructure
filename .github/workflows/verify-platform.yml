@@ -25,16 +25,16 @@ jobs:
             -o /usr/local/bin/kubectl
           chmod +x /usr/local/bin/kubectl
 
-      - name: Make EKS public temporarily
-        run: |
-          aws eks update-cluster-config \
-            --name ibank-dev-eks \
-            --resources-vpc-config \
-            endpointPublicAccess=true,endpointPrivateAccess=true \
-            --region us-east-1
-
-          echo "Waiting for endpoint..."
-          sleep 90
+#      - name: Make EKS public temporarily
+#        run: |
+#          aws eks update-cluster-config \
+#            --name ibank-dev-eks \
+#            --resources-vpc-config \
+#            endpointPublicAccess=true,endpointPrivateAccess=true \
+#            --region us-east-1
+#
+#          echo "Waiting for endpoint..."
+#          sleep 90
 
       - name: Configure kubectl
         run: |
