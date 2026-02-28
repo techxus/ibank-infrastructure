@@ -199,6 +199,16 @@ jobs:
             --query "ResourceRecordSets[?contains(Name,'argocd')]" \
             --output json
 
+      - name: Check ArgoCD app details
+        run: |
+          echo "=== app-of-apps details ==="
+          kubectl describe application app-of-apps -n argocd
+
+          echo "=== ArgoCD repo server logs ==="
+          kubectl logs -n argocd \
+            deployment/argocd-repo-server \
+            --tail=50
+
       - name: Make EKS private again
         if: always()
         run: |
