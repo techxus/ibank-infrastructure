@@ -129,14 +129,14 @@ jobs:
         run: |
           echo "=== Planning ${ENV} ==="
           terragrunt run --all plan \
-            --terragrunt-working-dir environments/aws/${ENV} \
+            --working-dir environments/aws/${ENV} \
             --non-interactive
 
       - name: Terragrunt Apply
         run: |
           echo "=== Applying ${ENV} ==="
           terragrunt run --all apply \
-            --terragrunt-working-dir environments/aws/${ENV} \
+            --working-dir environments/aws/${ENV} \
             --non-interactive
 
       - name: Upload errored state if apply fails
