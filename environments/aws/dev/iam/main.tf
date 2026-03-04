@@ -11,11 +11,13 @@
 # - ALB Controller  → creates AWS load balancers
 # - Crossplane      → provisions RDS and other AWS resources
 # - Vault           → auto-unseal via KMS
+# - external-dns    → manages Route53 records
+#
+# NOTE: All condition keys use cluster_oidc_issuer_url
+# (with https://) NOT the stripped local.oidc_issuer.
+# AWS requires the full https:// prefix in StringEquals
+# condition keys or STS returns AccessDenied.
 ############################################
-
-locals {
-  oidc_issuer = replace(var.cluster_oidc_issuer_url, "https://", "")
-}
 
 ############################################
 # ALB CONTROLLER
@@ -33,13 +35,13 @@ data "aws_iam_policy_document" "alb_controller_assume" {
 
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_issuer}:sub"
+      variable = "${var.cluster_oidc_issuer_url}:sub"
       values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
     }
 
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_issuer}:aud"
+      variable = "${var.cluster_oidc_issuer_url}:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
@@ -111,13 +113,13 @@ data "aws_iam_policy_document" "crossplane_assume" {
 
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_issuer}:sub"
+      variable = "${var.cluster_oidc_issuer_url}:sub"
       values   = ["system:serviceaccount:crossplane-system:crossplane"]
     }
 
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_issuer}:aud"
+      variable = "${var.cluster_oidc_issuer_url}:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
@@ -172,13 +174,13 @@ data "aws_iam_policy_document" "vault_assume" {
 
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_issuer}:sub"
+      variable = "${var.cluster_oidc_issuer_url}:sub"
       values   = ["system:serviceaccount:vault:vault"]
     }
 
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_issuer}:aud"
+      variable = "${var.cluster_oidc_issuer_url}:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
@@ -209,9 +211,9 @@ resource "aws_iam_role_policy" "vault" {
 }
 
 ############################################
-# external-dns IRSA role
-# Allows external-dns to manage Route53
+# EXTERNAL-DNS
 ############################################
+
 resource "aws_iam_role" "external_dns" {
   name = "ibank-${var.env}-external-dns"
 
@@ -243,8 +245,8 @@ resource "aws_iam_role_policy" "external_dns" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = ["route53:ChangeResourceRecordSets"]
+        Effect   = "Allow"
+        Action   = ["route53:ChangeResourceRecordSets"]
         Resource = "arn:aws:route53:::hostedzone/*"
       },
       {
