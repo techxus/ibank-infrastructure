@@ -10,8 +10,7 @@ dependency "eks" {
   config_path = "../eks"
 
   mock_outputs = {
-    oidc_provider_arn       = "arn:aws:iam::123456789012:oidc-provider/mock"
-    cluster_oidc_issuer_url = "https://oidc.eks.us-east-1.amazonaws.com/id/mock"
+    cluster_name = "mock-cluster"
   }
   mock_outputs_allowed_terraform_commands = ["plan", "validate", "destroy"]
 }
@@ -28,8 +27,7 @@ dependency "kms" {
 inputs = merge(
   local.env_vars.inputs,
   {
-    oidc_provider_arn       = dependency.eks.outputs.oidc_provider_arn
-    cluster_oidc_issuer_url = dependency.eks.outputs.cluster_oidc_issuer_url
-    vault_kms_key_arn       = dependency.kms.outputs.vault_unseal_key_arn
+    cluster_name      = dependency.eks.outputs.cluster_name
+    vault_kms_key_arn = dependency.kms.outputs.vault_unseal_key_arn
   }
 )

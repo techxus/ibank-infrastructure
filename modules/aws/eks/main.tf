@@ -12,7 +12,6 @@ module "eks" {
   cluster_endpoint_public_access  = var.cluster_endpoint_public_access
   cluster_endpoint_private_access = var.cluster_endpoint_private_access
 
-  # Disable built-in OIDC provider — we manage it below.
   enable_irsa = false
 
   enable_cluster_creator_admin_permissions = true
@@ -45,6 +44,7 @@ module "eks" {
     coredns    = { most_recent = true }
     kube-proxy = { most_recent = true }
     vpc-cni    = { most_recent = true }
+    eks-pod-identity-agent = { most_recent = true }
     aws-ebs-csi-driver = {
       most_recent              = true
       service_account_role_arn = aws_iam_role.ebs_csi.arn
@@ -55,54 +55,24 @@ module "eks" {
 }
 
 ############################################
-# OIDC Provider
-#
-# thumbprint_list is set to all zeros.
-# AWS requires the field to be non-empty but
-# ignores the value for EKS OIDC providers
-# since late 2023 — it validates via the JWKS
-# endpoint directly instead.
-# DO NOT pin a real thumbprint here. Doing so
-# causes IRSA AccessDenied failures.
+# EBS CSI Driver Role (Pod Identity)
 ############################################
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["0000000000000000000000000000000000000000"]
-  url             = module.eks.cluster_oidc_issuer_url
-  tags            = var.tags
-}
-
-############################################
-# EBS CSI Driver IRSA Role
-############################################
-data "aws_iam_policy_document" "ebs_csi_assume" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.eks.arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${aws_iam_openid_connect_provider.eks.url}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${aws_iam_openid_connect_provider.eks.url}:sub"
-      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
-    }
-  }
-}
-
 resource "aws_iam_role" "ebs_csi" {
-  name               = "${var.cluster_name}-ebs-csi"
-  assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume.json
-  tags               = var.tags
+  name = "${var.cluster_name}-ebs-csi"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = [
+        "sts:AssumeRole",
+        "sts:TagSession"
+      ]
+    }]
+  })
+
+  tags = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ebs_csi" {
@@ -110,20 +80,22 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
+resource "aws_eks_pod_identity_association" "ebs_csi" {
+  cluster_name    = module.eks.cluster_name
+  namespace       = "kube-system"
+  service_account = "ebs-csi-controller-sa"
+  role_arn        = aws_iam_role.ebs_csi.arn
+}
+
 ############################################
 # EKS Access Entries
-#
-# Grants IAM users/roles access to the cluster
-# without relying on aws-auth ConfigMap.
-# Survives cluster recreation automatically.
 ############################################
 resource "aws_eks_access_entry" "this" {
   for_each = var.access_entries
 
   cluster_name  = module.eks.cluster_name
   principal_arn = each.value.principal_arn
-
-  tags = var.tags
+  tags          = var.tags
 }
 
 resource "aws_eks_access_policy_association" "this" {

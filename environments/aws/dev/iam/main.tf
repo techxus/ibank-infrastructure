@@ -1,56 +1,23 @@
 ############################################
 # environments/aws/dev/iam/main.tf
-#
-# PURPOSE:
-# Creates IRSA roles for tools running
-# inside EKS. IRSA = IAM Roles for Service
-# Accounts. Pods assume these roles via OIDC
-# without storing any credentials.
-#
-# Roles:
-# - ALB Controller  → creates AWS load balancers
-# - Crossplane      → provisions RDS and other AWS resources
-# - Vault           → auto-unseal via KMS
-# - external-dns    → manages Route53 records
-#
-# NOTE: All condition keys use cluster_oidc_issuer_url
-# (with https://) NOT the stripped local.oidc_issuer.
-# AWS requires the full https:// prefix in StringEquals
-# condition keys or STS returns AccessDenied.
 ############################################
 
 ############################################
 # ALB CONTROLLER
 ############################################
-
-data "aws_iam_policy_document" "alb_controller_assume" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [var.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.cluster_oidc_issuer_url}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.cluster_oidc_issuer_url}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "alb_controller" {
-  name               = "ibank-${var.env}-alb-controller"
-  assume_role_policy = data.aws_iam_policy_document.alb_controller_assume.json
-  tags               = merge(var.tags, { Purpose = "alb-controller" })
+  name = "ibank-${var.env}-alb-controller"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = ["sts:AssumeRole", "sts:TagSession"]
+    }]
+  })
+
+  tags = merge(var.tags, { Purpose = "alb-controller" })
 }
 
 resource "aws_iam_role_policy" "alb_controller" {
@@ -100,35 +67,19 @@ resource "aws_iam_role_policy" "alb_controller" {
 ############################################
 # CROSSPLANE
 ############################################
-
-data "aws_iam_policy_document" "crossplane_assume" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [var.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.cluster_oidc_issuer_url}:sub"
-      values   = ["system:serviceaccount:crossplane-system:crossplane"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.cluster_oidc_issuer_url}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "crossplane" {
-  name               = "ibank-${var.env}-crossplane"
-  assume_role_policy = data.aws_iam_policy_document.crossplane_assume.json
-  tags               = merge(var.tags, { Purpose = "crossplane" })
+  name = "ibank-${var.env}-crossplane"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = ["sts:AssumeRole", "sts:TagSession"]
+    }]
+  })
+
+  tags = merge(var.tags, { Purpose = "crossplane" })
 }
 
 resource "aws_iam_role_policy" "crossplane" {
@@ -161,35 +112,19 @@ resource "aws_iam_role_policy" "crossplane" {
 ############################################
 # VAULT
 ############################################
-
-data "aws_iam_policy_document" "vault_assume" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [var.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.cluster_oidc_issuer_url}:sub"
-      values   = ["system:serviceaccount:vault:vault"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.cluster_oidc_issuer_url}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "vault" {
-  name               = "ibank-${var.env}-vault"
-  assume_role_policy = data.aws_iam_policy_document.vault_assume.json
-  tags               = merge(var.tags, { Purpose = "vault" })
+  name = "ibank-${var.env}-vault"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = ["sts:AssumeRole", "sts:TagSession"]
+    }]
+  })
+
+  tags = merge(var.tags, { Purpose = "vault" })
 }
 
 resource "aws_iam_role_policy" "vault" {
@@ -213,24 +148,15 @@ resource "aws_iam_role_policy" "vault" {
 ############################################
 # EXTERNAL-DNS
 ############################################
-
 resource "aws_iam_role" "external_dns" {
   name = "ibank-${var.env}-external-dns"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Federated = var.oidc_provider_arn
-      }
-      Action = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "${var.cluster_oidc_issuer_url}:sub" = "system:serviceaccount:external-dns:external-dns-${var.env}"
-          "${var.cluster_oidc_issuer_url}:aud" = "sts.amazonaws.com"
-        }
-      }
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = ["sts:AssumeRole", "sts:TagSession"]
     }]
   })
 
@@ -260,4 +186,37 @@ resource "aws_iam_role_policy" "external_dns" {
       }
     ]
   })
+}
+
+############################################
+# Pod Identity Associations
+# Links IAM roles to Kubernetes service accounts
+# No OIDC required — agent handles token exchange
+############################################
+resource "aws_eks_pod_identity_association" "alb_controller" {
+  cluster_name    = var.cluster_name
+  namespace       = "kube-system"
+  service_account = "aws-load-balancer-controller"
+  role_arn        = aws_iam_role.alb_controller.arn
+}
+
+resource "aws_eks_pod_identity_association" "crossplane" {
+  cluster_name    = var.cluster_name
+  namespace       = "crossplane-system"
+  service_account = "crossplane"
+  role_arn        = aws_iam_role.crossplane.arn
+}
+
+resource "aws_eks_pod_identity_association" "vault" {
+  cluster_name    = var.cluster_name
+  namespace       = "vault"
+  service_account = "vault"
+  role_arn        = aws_iam_role.vault.arn
+}
+
+resource "aws_eks_pod_identity_association" "external_dns" {
+  cluster_name    = var.cluster_name
+  namespace       = "external-dns"
+  service_account = "external-dns-${var.env}"
+  role_arn        = aws_iam_role.external_dns.arn
 }
