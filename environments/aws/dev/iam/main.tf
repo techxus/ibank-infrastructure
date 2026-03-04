@@ -220,3 +220,35 @@ resource "aws_eks_pod_identity_association" "external_dns" {
   service_account = "external-dns-${var.env}"
   role_arn        = aws_iam_role.external_dns.arn
 }
+
+############################################
+# environments/aws/dev/iam/rds.tf
+# RDS master password — generated once,
+# stored in SSM SecureString, never in git.
+# Works for dev/stage/prod via var.env.
+############################################
+
+resource "random_password" "rds_master" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}?"
+}
+
+resource "aws_ssm_parameter" "rds_master_password" {
+  name        = "/ibank/${var.env}/rds/master-password"
+  type        = "SecureString"
+  value       = random_password.rds_master.result
+  description = "RDS master password for ibank ${var.env}"
+  tags        = var.tags
+
+  lifecycle {
+    ignore_changes = [value]  # never rotate automatically
+  }
+}
+
+resource "aws_ssm_parameter" "rds_master_username" {
+  name  = "/ibank/${var.env}/rds/master-username"
+  type  = "String"
+  value = "ibankadmin"
+  tags  = var.tags
+}

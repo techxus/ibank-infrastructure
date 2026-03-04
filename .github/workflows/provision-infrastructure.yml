@@ -1,19 +1,91 @@
 name: Provision iBank Infrastructure
+
+####################################################
+# Branch → Environment mapping:
+#   develop      → dev   (automatic)
+#   release/**   → stage (automatic)
+#   master       → prod  (automatic + approval gate)
+#   manual       → any env via workflow_dispatch
+####################################################
 on:
   push:
     branches:
       - master
+      - develop
+      - release/**
     paths-ignore:
       - '.github/**'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment to apply (dev/stage/prod)"
+        required: true
+        default: "dev"
+      confirm:
+        description: "Type APPLY to confirm"
+        required: true
 
 permissions:
   id-token: write
   contents: write
 
 jobs:
-  terragrunt:
-    name: Terragrunt
+  ###################################################
+  # Resolve which environment to target.
+  # Sets ENV as an output for downstream jobs.
+  ###################################################
+  resolve-env:
+    name: Resolve Environment
     runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.resolve.outputs.env }}
+
+    steps:
+      - name: Resolve environment
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.env }}"
+
+            if [ "${{ github.event.inputs.confirm }}" != "APPLY" ]; then
+              echo "ERROR: Type APPLY in the confirm field to proceed"
+              exit 1
+            fi
+          elif [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            ENV="prod"
+          elif [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            ENV="dev"
+          elif echo "${{ github.ref }}" | grep -q "^refs/heads/release/"; then
+            ENV="stage"
+          else
+            ENV="dev"
+          fi
+
+          case "${ENV}" in
+            dev|stage|prod) echo "Environment resolved: ${ENV} ✓" ;;
+            *) echo "ERROR: Invalid environment '${ENV}'"; exit 1 ;;
+          esac
+
+          echo "env=${ENV}" >> $GITHUB_OUTPUT
+
+          echo "=== Environment Resolution ==="
+          echo "  Triggered by : ${{ github.event_name }}"
+          echo "  Branch/Ref   : ${{ github.ref }}"
+          echo "  Environment  : ${ENV}"
+
+  ###################################################
+  # Terragrunt — provisions infrastructure
+  # Uses GitHub environment gate for prod approval
+  ###################################################
+  terragrunt:
+    name: Terragrunt (${{ needs.resolve-env.outputs.env }})
+    runs-on: ubuntu-latest
+    needs: resolve-env
+
+    environment: ${{ needs.resolve-env.outputs.env }}
+
+    env:
+      ENV: ${{ needs.resolve-env.outputs.env }}
 
     steps:
       - name: Checkout
@@ -49,23 +121,44 @@ jobs:
           terragrunt apply -auto-approve \
             --non-interactive
 
+      ############################################
+      # Plan then apply the target environment only.
+      # Never touches other environments.
+      ############################################
+      - name: Terragrunt Plan
+        run: |
+          echo "=== Planning ${ENV} ==="
+          terragrunt run --all plan \
+            --terragrunt-working-dir environments/aws/${ENV} \
+            --non-interactive
+
       - name: Terragrunt Apply
         run: |
+          echo "=== Applying ${ENV} ==="
           terragrunt run --all apply \
+            --terragrunt-working-dir environments/aws/${ENV} \
             --non-interactive
 
       - name: Upload errored state if apply fails
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: errored-tfstate
+          name: errored-tfstate-${{ needs.resolve-env.outputs.env }}
           path: '**/errored.tfstate'
           retention-days: 5
 
+  ###################################################
+  # Generate platform config after infra is applied.
+  # Writes gitops/environments/{env}.yaml to
+  # ibank-platform repo from SSM outputs.
+  ###################################################
   generate-platform-config:
-    name: Generate and Inject Platform Configuration(s)
+    name: Generate Platform Config (${{ needs.resolve-env.outputs.env }})
     runs-on: ubuntu-latest
-    needs: terragrunt
+    needs: [resolve-env, terragrunt]
+
+    env:
+      ENV: ${{ needs.resolve-env.outputs.env }}
 
     steps:
       - name: Checkout ibank-infrastructure
@@ -84,7 +177,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Generate environment configs
+      - name: Generate environment config
         run: |
           get_param() {
             aws ssm get-parameter \
@@ -94,41 +187,40 @@ jobs:
               --region us-east-1 2>/dev/null || echo ""
           }
 
-          for ENV in dev stage prod; do
-            REGION=$(get_param /ibank/$ENV/region)
+          REGION=$(get_param /ibank/${ENV}/region)
 
-            if [ -z "$REGION" ]; then
-              echo "Skipping $ENV - SSM params not found"
-              continue
-            fi
+          if [ -z "$REGION" ]; then
+            echo "ERROR: SSM params not found for ${ENV} — has Terraform been applied?"
+            exit 1
+          fi
 
-            echo "Generating config for: $ENV"
+          echo "Generating config for: ${ENV}"
 
-            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            DOMAIN=$(get_param /ibank/$ENV/domain)
-            CLUSTER_NAME=$(get_param /ibank/$ENV/cluster-name)
-            ACM_CERT_ID=$(get_param /ibank/$ENV/acm-certificate-id)
-            VAULT_KMS_KEY_ID=$(get_param /ibank/$ENV/vault-kms-key-alias)
-            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          DOMAIN=$(get_param /ibank/${ENV}/domain)
+          CLUSTER_NAME=$(get_param /ibank/${ENV}/cluster-name)
+          ACM_CERT_ID=$(get_param /ibank/${ENV}/acm-certificate-id)
+          VAULT_KMS_KEY_ID=$(get_param /ibank/${ENV}/vault-kms-key-alias)
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-            {
-              echo "############################################"
-              echo "# $ENV.yaml"
-              echo "# AUTO-GENERATED by ibank-infrastructure pipeline"
-              echo "# DO NOT EDIT MANUALLY"
-              echo "# Last updated: $TIMESTAMP"
-              echo "############################################"
-              echo "env: $ENV"
-              echo "region: $REGION"
-              echo "domain: $DOMAIN"
-              echo "accountId: \"$ACCOUNT_ID\""
-              echo "clusterName: \"$CLUSTER_NAME\""
-              echo "vaultKmsKeyId: \"$VAULT_KMS_KEY_ID\""
-              echo "acmCertificateId: \"$ACM_CERT_ID\""
-            } > ibank-platform/gitops/environments/$ENV.yaml
+          {
+            echo "############################################"
+            echo "# ${ENV}.yaml"
+            echo "# AUTO-GENERATED by ibank-infrastructure pipeline"
+            echo "# DO NOT EDIT MANUALLY"
+            echo "# Last updated: $TIMESTAMP"
+            echo "############################################"
+            echo "env: ${ENV}"
+            echo "region: $REGION"
+            echo "domain: $DOMAIN"
+            echo "accountId: \"$ACCOUNT_ID\""
+            echo "clusterName: \"$CLUSTER_NAME\""
+            echo "vaultKmsKeyId: \"$VAULT_KMS_KEY_ID\""
+            echo "acmCertificateId: \"$ACM_CERT_ID\""
+          } > ibank-platform/gitops/environments/${ENV}.yaml
 
-            echo "✓ Generated gitops/environments/$ENV.yaml"
-          done
+          echo "✓ Generated gitops/environments/${ENV}.yaml"
+          cat ibank-platform/gitops/environments/${ENV}.yaml
 
       - name: Commit and push
         run: |
@@ -137,5 +229,5 @@ jobs:
           git config user.email "pipeline@bankit.cloud"
           git add gitops/environments/
           git diff --staged --quiet || \
-            git commit -m "chore: auto-generate environment configs from SSM"
+            git commit -m "chore: auto-generate ${ENV} environment config from SSM [skip ci]"
           git push
