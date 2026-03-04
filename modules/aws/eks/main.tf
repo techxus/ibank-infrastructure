@@ -97,13 +97,6 @@ resource "aws_iam_openid_connect_provider" "eks" {
   thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
   url             = module.eks.cluster_oidc_issuer_url
 
-  lifecycle {
-    # Never let Terraform recompute or overwrite
-    # the thumbprint after initial creation.
-    # Changing it breaks all IRSA authentication.
-    ignore_changes = [thumbprint_list]
-  }
-
   tags = var.tags
 }
 

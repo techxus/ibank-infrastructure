@@ -54,31 +54,6 @@ jobs:
           terragrunt run --all apply \
             --non-interactive
 
-      ############################################
-      # Fix OIDC provider thumbprint after apply.
-      # The community module computes the wrong
-      # thumbprint via tls_certificate data source.
-      # We force the correct AWS root CA thumbprint
-      # every time — idempotent, no state changes.
-      ############################################
-      - name: Fix OIDC provider thumbprint
-        run: |
-          OIDC_ARN=$(aws iam list-open-id-connect-providers \
-            --query "OpenIDConnectProviderList[?contains(Arn, 'oidc.eks.us-east-1')].Arn" \
-            --output text)
-
-          if [ -z "$OIDC_ARN" ]; then
-            echo "ERROR: No EKS OIDC provider found"
-            exit 1
-          fi
-
-          echo "Updating thumbprint for: $OIDC_ARN"
-          aws iam update-open-id-connect-provider-thumbprint \
-            --open-id-connect-provider-arn "$OIDC_ARN" \
-            --thumbprint-list "9e99a48a9960b14926bb7f3b02e22da2b0ab7280"
-
-          echo "✓ Thumbprint updated successfully"
-
       - name: Upload errored state if apply fails
         if: failure()
         uses: actions/upload-artifact@v4
