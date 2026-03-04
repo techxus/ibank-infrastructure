@@ -22,6 +22,13 @@ inputs = merge(
   {
     vpc_id             = dependency.vpc.outputs.vpc_id
     private_subnet_ids = dependency.vpc.outputs.private_subnet_ids
-    cluster_endpoint_public_access = true  # TODO: Make Private and Remove this once we have a working cluster and can test Private access. ALB Controller needs Public access for now.
+    cluster_endpoint_public_access = true
+
+    access_entries = {
+      techxus-admin = {
+        principal_arn = "arn:aws:iam::121897425968:user/techxus-admin"
+        policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+      }
+    }
   }
 )

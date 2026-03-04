@@ -109,3 +109,33 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   role       = aws_iam_role.ebs_csi.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
+
+############################################
+# EKS Access Entries
+#
+# Grants IAM users/roles access to the cluster
+# without relying on aws-auth ConfigMap.
+# Survives cluster recreation automatically.
+############################################
+resource "aws_eks_access_entry" "this" {
+  for_each = var.access_entries
+
+  cluster_name  = module.eks.cluster_name
+  principal_arn = each.value.principal_arn
+
+  tags = var.tags
+}
+
+resource "aws_eks_access_policy_association" "this" {
+  for_each = var.access_entries
+
+  cluster_name  = module.eks.cluster_name
+  principal_arn = each.value.principal_arn
+  policy_arn    = each.value.policy_arn
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.this]
+}

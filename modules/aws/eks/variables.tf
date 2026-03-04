@@ -139,3 +139,15 @@ variable "ami_type" {
   type        = string
   default     = "AL2_x86_64"
 }
+
+############################################
+# EKS Access Entries
+############################################
+variable "access_entries" {
+  description = "Map of IAM principals to grant cluster access"
+  type = map(object({
+    principal_arn = string
+    policy_arn    = string
+  }))
+  default = {}
+}
