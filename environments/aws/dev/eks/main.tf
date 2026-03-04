@@ -40,7 +40,6 @@ module "eks" {
 # Configure Kubernetes and Helm providers
 # These need the EKS cluster to exist first.
 ############################################
-
 data "aws_eks_cluster" "this" {
   name       = module.eks.cluster_name
   depends_on = [module.eks]
