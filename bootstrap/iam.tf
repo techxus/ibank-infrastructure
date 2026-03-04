@@ -16,7 +16,6 @@
 # global/dev.hcl depends on dev.hcl
 # so Terragrunt always runs this first.
 ############################################
-
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
