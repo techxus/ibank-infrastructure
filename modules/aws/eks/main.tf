@@ -69,8 +69,7 @@ resource "aws_iam_openid_connect_provider" "eks" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["0000000000000000000000000000000000000000"]
   url             = module.eks.cluster_oidc_issuer_url
-
-  tags = var.tags
+  tags            = var.tags
 }
 
 ############################################
