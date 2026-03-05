@@ -43,3 +43,5 @@ resource "aws_ssm_parameter" "cluster_name" {
   tags  = var.tags
 }
 
+
+
