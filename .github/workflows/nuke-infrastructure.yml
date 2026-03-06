@@ -1,10 +1,23 @@
 name: Destroy iBank Infrastructure
 
+####################################################
+# Destroys infrastructure for a specific environment.
+# Bootstrap is NEVER destroyed — it contains the
+# GitHub Actions role the pipeline needs to auth.
+#
+# Pre-destroy cleanup removes AWS resources created
+# by EKS/ALB controller that Terraform doesn't own
+# and would block VPC deletion.
+####################################################
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: "Environment to destroy (dev/stage/prod)"
+        required: true
+        default: "dev"
       confirm:
-        description: "This will delete ALL EKS Resources.Type DESTROY to confirm"
+        description: "Type DESTROY to confirm"
         required: true
 
 permissions:
@@ -12,10 +25,42 @@ permissions:
   contents: read
 
 jobs:
-  destroy:
-    name: Destroy
+  resolve-env:
+    name: Resolve Environment
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'DESTROY'
+    outputs:
+      env: ${{ steps.resolve.outputs.env }}
+
+    steps:
+      - name: Resolve environment
+        id: resolve
+        run: |
+          ENV="${{ github.event.inputs.env }}"
+
+          if [ "${{ github.event.inputs.confirm }}" != "DESTROY" ]; then
+            echo "ERROR: Type DESTROY in the confirm field to proceed"
+            exit 1
+          fi
+
+          case "${ENV}" in
+            dev|stage|prod) echo "Environment resolved: ${ENV} ✓" ;;
+            *) echo "ERROR: Invalid environment '${ENV}'"; exit 1 ;;
+          esac
+
+          echo "env=${ENV}" >> $GITHUB_OUTPUT
+
+          echo "=== Destroy Configuration ==="
+          echo "  Environment  : ${ENV}"
+
+  destroy:
+    name: Destroy (${{ needs.resolve-env.outputs.env }})
+    runs-on: ubuntu-latest
+    needs: resolve-env
+
+    environment: ${{ needs.resolve-env.outputs.env }}
+
+    env:
+      ENV: ${{ needs.resolve-env.outputs.env }}
 
     steps:
       - name: Checkout
@@ -40,29 +85,165 @@ jobs:
           aws-region: us-east-1
 
       ############################################
-      # Cleanup orphaned resources from previous
-      # failed runs. || true never fails if
-      # resource does not exist.
+      # Cleanup orphaned EKS resources
       ############################################
       - name: Cleanup orphaned EKS resources
         run: |
           aws kms delete-alias \
-            --alias-name alias/eks/ibank-dev-eks \
+            --alias-name alias/eks/ibank-${ENV}-eks \
             --region us-east-1 2>/dev/null || true
 
           aws logs delete-log-group \
-            --log-group-name /aws/eks/ibank-dev-eks/cluster \
+            --log-group-name /aws/eks/ibank-${ENV}-eks/cluster \
             --region us-east-1 2>/dev/null || true
 
       ############################################
-      # Destroy all workspaces in reverse
-      # dependency order automatically.
-      # Bootstrap excluded — it contains the
-      # GitHub Actions role the pipeline needs
-      # to authenticate. Never destroy it.
+      # Pre-destroy: clean up AWS resources created
+      # by EKS/ALB controller that Terraform doesn't
+      # own but block VPC deletion.
       ############################################
-      - name: Destroy All
+      - name: Pre-destroy AWS cleanup
         run: |
+          VPC_ID=$(aws ssm get-parameter \
+            --name "/ibank/${ENV}/vpc/id" \
+            --query 'Parameter.Value' \
+            --output text --region us-east-1 2>/dev/null || echo "")
+
+          if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+            echo "No VPC found in SSM for env ${ENV} — skipping cleanup ✓"
+            exit 0
+          fi
+
+          echo "Cleaning up resources in VPC: $VPC_ID"
+
+          # Delete ALBs in this VPC
+          echo "Deleting load balancers..."
+          aws elbv2 describe-load-balancers --region us-east-1 \
+            --query 'LoadBalancers[*].LoadBalancerArn' --output text | \
+            tr '\t' '\n' | while read ARN; do
+              [ -z "$ARN" ] && continue
+              VPC=$(aws elbv2 describe-load-balancers \
+                --load-balancer-arns "$ARN" \
+                --query 'LoadBalancers[0].VpcId' --output text 2>/dev/null)
+              if [ "$VPC" = "$VPC_ID" ]; then
+                aws elbv2 delete-load-balancer --load-balancer-arn "$ARN" --region us-east-1 2>/dev/null && \
+                  echo "  Deleted LB: $ARN" || true
+              fi
+            done
+
+          # Wait for LBs to finish deleting before removing SGs/ENIs
+          echo "Waiting 30s for load balancers to finish deleting..."
+          sleep 30
+
+          # Delete target groups in this VPC
+          echo "Deleting target groups..."
+          aws elbv2 describe-target-groups --region us-east-1 \
+            --query 'TargetGroups[*].TargetGroupArn' --output text | \
+            tr '\t' '\n' | while read ARN; do
+              [ -z "$ARN" ] && continue
+              VPC=$(aws elbv2 describe-target-groups \
+                --target-group-arns "$ARN" \
+                --query 'TargetGroups[0].VpcId' --output text 2>/dev/null)
+              if [ "$VPC" = "$VPC_ID" ]; then
+                aws elbv2 delete-target-group --target-group-arn "$ARN" --region us-east-1 2>/dev/null && \
+                  echo "  Deleted TG: $ARN" || true
+              fi
+            done
+
+          # Delete NAT Gateways
+          echo "Deleting NAT gateways..."
+          aws ec2 describe-nat-gateways \
+            --filter "Name=vpc-id,Values=$VPC_ID" "Name=state,Values=available" \
+            --query 'NatGateways[*].NatGatewayId' --output text | \
+            tr '\t' '\n' | while read NGW; do
+              [ -z "$NGW" ] && continue
+              aws ec2 delete-nat-gateway --nat-gateway-id "$NGW" --region us-east-1 2>/dev/null && \
+                echo "  Deleted NAT GW: $NGW" || true
+            done
+
+          # Wait for NAT GWs to finish deleting
+          echo "Waiting 60s for NAT gateways to finish deleting..."
+          sleep 60
+
+          # Delete network interfaces
+          echo "Deleting network interfaces..."
+          aws ec2 describe-network-interfaces \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query 'NetworkInterfaces[*].NetworkInterfaceId' --output text | \
+            tr '\t' '\n' | while read ENI; do
+              [ -z "$ENI" ] && continue
+              aws ec2 delete-network-interface \
+                --network-interface-id "$ENI" --region us-east-1 2>/dev/null || true
+            done
+
+          # Release Elastic IPs associated with this VPC's NAT GWs
+          echo "Releasing Elastic IPs..."
+          aws ec2 describe-addresses \
+            --filters "Name=domain,Values=vpc" \
+            --query 'Addresses[*].[AllocationId,AssociationId]' --output text | \
+            while read ALLOC ASSOC; do
+              [ -z "$ALLOC" ] && continue
+              [ "$ASSOC" != "None" ] && [ -n "$ASSOC" ] && \
+                aws ec2 disassociate-address --association-id "$ASSOC" --region us-east-1 2>/dev/null || true
+              aws ec2 release-address --allocation-id "$ALLOC" --region us-east-1 2>/dev/null || true
+            done
+
+          echo "Pre-destroy cleanup complete ✓"
+
+      ############################################
+      # Destroy target environment only.
+      # Bootstrap excluded — never destroy it.
+      ############################################
+      - name: Destroy environment
+        run: |
+          echo "=== Destroying ${ENV} ==="
           terragrunt run --all destroy \
-            --non-interactive \
-            --queue-exclude-dir bootstrap
+            --working-dir environments/aws/${ENV} \
+            --non-interactive
+
+      ############################################
+      # Clean up SSM vault/init secret after destroy
+      # so bootstrap can re-init Vault cleanly.
+      ############################################
+      - name: Cleanup Vault init secret
+        run: |
+          aws secretsmanager delete-secret \
+            --secret-id "/ibank/${ENV}/vault/init" \
+            --force-delete-without-recovery \
+            --region us-east-1 2>/dev/null && \
+            echo "Vault init secret deleted ✓" || \
+            echo "Vault init secret not found — skipping ✓"
+
+      ############################################
+      # Final verification
+      ############################################
+      - name: Verify destruction
+        run: |
+          echo "=== Destruction Verification: ${ENV} ==="
+
+          VPC_ID=$(aws ssm get-parameter \
+            --name "/ibank/${ENV}/vpc/id" \
+            --query 'Parameter.Value' \
+            --output text --region us-east-1 2>/dev/null || echo "")
+
+          if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
+            VPC_EXISTS=$(aws ec2 describe-vpcs \
+              --vpc-ids "$VPC_ID" \
+              --query 'Vpcs[0].VpcId' \
+              --output text 2>/dev/null || echo "")
+            if [ -n "$VPC_EXISTS" ]; then
+              echo "WARNING: VPC $VPC_ID still exists — manual cleanup may be needed"
+            else
+              echo "VPC destroyed ✓"
+            fi
+          fi
+
+          echo "EKS clusters remaining:"
+          aws eks list-clusters --region us-east-1 \
+            --query "clusters[?contains(@,'ibank-${ENV}')]" --output table || true
+
+          echo "========================================"
+          echo "  Destroy Complete: ${ENV}"
+          echo "========================================"
+          echo "  Run bootstrap workflow to rebuild."
+          echo "========================================"
