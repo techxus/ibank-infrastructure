@@ -11,10 +11,6 @@
 ############################################
 data "aws_caller_identity" "current" {}
 
-data "aws_eks_cluster" "this" {
-  name = var.cluster_name
-}
-
 resource "aws_ssm_parameter" "region" {
   name  = "/ibank/${var.env}/region"
   type  = "String"
@@ -42,6 +38,3 @@ resource "aws_ssm_parameter" "cluster_name" {
   value = var.cluster_name
   tags  = var.tags
 }
-
-
-
