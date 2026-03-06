@@ -111,3 +111,4 @@ resource "aws_eks_access_policy_association" "this" {
 
   depends_on = [aws_eks_access_entry.this]
 }
+
