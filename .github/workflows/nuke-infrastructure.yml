@@ -191,6 +191,40 @@ jobs:
           echo "Pre-destroy cleanup complete ✓"
 
       ############################################
+      # Pre-destroy: delete RDS instances so
+      # Terraform can delete the subnet group.
+      ############################################
+      - name: Pre-destroy RDS cleanup
+        run: |
+          echo "Deleting RDS instances for env: ${ENV}..."
+
+          INSTANCES=$(aws rds describe-db-instances             --region us-east-1             --query "DBInstances[?DBSubnetGroup.DBSubnetGroupName=='ibank-${ENV}-postgres'].DBInstanceIdentifier"             --output text)
+
+          if [ -z "$INSTANCES" ] || [ "$INSTANCES" = "None" ]; then
+            echo "No RDS instances found — skipping ✓"
+          else
+            for DB in $INSTANCES; do
+              echo "Deleting RDS instance: $DB"
+              aws rds delete-db-instance                 --db-instance-identifier "$DB"                 --skip-final-snapshot                 --delete-automated-backups                 --region us-east-1 2>/dev/null &&                 echo "  Deletion initiated: $DB" ||                 echo "  Already deleting or not found: $DB"
+            done
+
+            echo "Waiting for RDS instances to finish deleting (up to 15min)..."
+            for DB in $INSTANCES; do
+              for i in $(seq 1 90); do
+                STATUS=$(aws rds describe-db-instances                   --db-instance-identifier "$DB"                   --query 'DBInstances[0].DBInstanceStatus'                   --output text --region us-east-1 2>/dev/null || echo "deleted")
+                if [ "$STATUS" = "deleted" ] || [ "$STATUS" = "None" ]; then
+                  echo "  $DB deleted ✓"
+                  break
+                fi
+                echo "  Attempt $i/90 - $DB status: $STATUS, waiting 10s..."
+                sleep 10
+              done
+            done
+          fi
+
+          echo "RDS pre-destroy cleanup complete ✓"
+
+      ############################################
       # Destroy target environment only.
       # Bootstrap excluded — never destroy it.
       ############################################
