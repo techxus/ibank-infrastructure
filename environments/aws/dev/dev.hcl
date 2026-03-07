@@ -1,11 +1,6 @@
-locals {
+inputs = {
   env          = "dev"
   cluster_name = "ibank-dev-eks"
-}
-
-inputs = {
-  env          = local.env
-  cluster_name = local.cluster_name
 
   node_instance_type = "t3.medium"
 
@@ -17,7 +12,9 @@ inputs = {
   ng2_max_size     = 2
   ng2_desired_size = 1
 
+  tailscale_auth_key = get_env("TAILSCALE_AUTH_KEY")
+
   tags = {
-    Environment = local.env
+    Environment = "dev"
   }
 }

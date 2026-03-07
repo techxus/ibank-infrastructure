@@ -27,3 +27,14 @@ variable "vpc_cidr" {
   description = "VPC CIDR block"
   type        = string
 }
+
+variable "public_subnet_ids" {
+  description = "Public subnet IDs"
+  type        = list(string)
+}
+
+variable "tailscale_auth_key" {
+  description = "Tailscale auth key"
+  type        = string
+  sensitive   = true
+}
