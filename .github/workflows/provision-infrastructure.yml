@@ -104,6 +104,12 @@ jobs:
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
           terragrunt --version
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
       - name: Store Tailscale auth key in SSM
         run: |
           aws ssm put-parameter \
@@ -112,12 +118,6 @@ jobs:
             --value "${{ secrets.TAILSCALE_AUTH_KEY }}" \
             --overwrite \
             --region us-east-1
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
 
       ############################################
       # Bootstrap runs first — always.
