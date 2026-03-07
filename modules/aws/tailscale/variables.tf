@@ -14,10 +14,9 @@ variable "tags" {
   type = map(string)
 }
 
-variable "tailscale_auth_key" {
-  description = "Tailscale tagged auth key"
+variable "tailscale_auth_key_ssm_parameter_name" {
+  description = "SSM parameter name holding Tailscale auth key"
   type        = string
-  sensitive   = true
 }
 
 variable "advertise_routes" {
@@ -29,4 +28,9 @@ variable "instance_type" {
   description = "EC2 instance type for subnet router"
   type        = string
   default     = "t3.micro"
+}
+
+variable "region" {
+  description = "AWS region"
+  type        = string
 }

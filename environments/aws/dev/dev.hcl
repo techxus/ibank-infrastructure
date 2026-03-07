@@ -12,7 +12,7 @@ inputs = {
   ng2_max_size     = 2
   ng2_desired_size = 1
 
-  tailscale_auth_key = get_env("TAILSCALE_AUTH_KEY")
+  tailscale_auth_key_ssm_parameter_name = "/ibank/dev/tailscale/auth-key"
 
   tags = {
     Environment = "dev"

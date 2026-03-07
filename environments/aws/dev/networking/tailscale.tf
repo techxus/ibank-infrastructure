@@ -1,8 +1,3 @@
-############################################
-# Tailscale subnet router
-# Provides private developer access to VPC resources
-############################################
-
 module "tailscale_router" {
   source = "../../../../modules/aws/tailscale"
 
@@ -13,7 +8,8 @@ module "tailscale_router" {
 
   tags = var.tags
 
-  tailscale_auth_key = var.tailscale_auth_key
+  tailscale_auth_key_ssm_parameter_name = var.tailscale_auth_key_ssm_parameter_name
+  region                                = var.region
 
   advertise_routes = [
     "10.0.100.0/24",

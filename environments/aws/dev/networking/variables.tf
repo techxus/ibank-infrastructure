@@ -33,8 +33,7 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
-variable "tailscale_auth_key" {
-  description = "Tailscale auth key"
+variable "tailscale_auth_key_ssm_parameter_name" {
+  description = "SSM parameter name for Tailscale auth key"
   type        = string
-  sensitive   = true
 }
