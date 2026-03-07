@@ -7,3 +7,19 @@ output "rds_security_group_id" {
   description = "RDS security group ID for Crossplane claims"
   value       = aws_security_group.rds.id
 }
+
+output "tailscale_router_instance_id" {
+  value = module.tailscale_router.router_instance_id
+}
+
+output "tailscale_router_private_ip" {
+  value = module.tailscale_router.router_private_ip
+}
+
+output "tailscale_router_public_ip" {
+  value = module.tailscale_router.router_public_ip
+}
+
+output "tailscale_router_security_group_id" {
+  value = module.tailscale_router.router_security_group_id
+}
