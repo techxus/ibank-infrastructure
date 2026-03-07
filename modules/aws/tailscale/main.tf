@@ -108,9 +108,10 @@ resource "aws_instance" "router" {
       --authkey="$AUTH_KEY" \
       --hostname="ibank-${var.env}-tailscale-router" \
       --advertise-routes="${join(",", var.advertise_routes)}" \
+      --advertise-tags=tag:subnet-router \
       --accept-dns=false \
       --ssh
-  EOF
+      EOF
 
   tags = merge(var.tags, {
     Name = "ibank-${var.env}-tailscale-router"
