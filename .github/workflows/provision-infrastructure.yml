@@ -104,11 +104,31 @@ jobs:
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
           terragrunt --version
 
-      - name: Configure AWS credentials
+      ############################################
+      # Bootstrap runs first — always.
+      # Ensures GitHub Actions role exists before
+      # anything else runs. Self-healing after nuke.
+      ############################################
+      - name: Configure AWS credentials for bootstrap
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
+
+      - name: Apply Bootstrap
+        working-directory: bootstrap
+        run: |
+          terragrunt apply -auto-approve \
+            --non-interactive
+
+      - name: Re-configure AWS credentials after bootstrap
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
 
       - name: Store Tailscale auth key in SSM
         run: |
@@ -118,17 +138,6 @@ jobs:
             --value "${{ secrets.TAILSCALE_AUTH_KEY }}" \
             --overwrite \
             --region us-east-1
-
-      ############################################
-      # Bootstrap runs first — always.
-      # Ensures GitHub Actions role exists before
-      # anything else runs. Self-healing after nuke.
-      ############################################
-      - name: Apply Bootstrap
-        working-directory: bootstrap
-        run: |
-          terragrunt apply -auto-approve \
-            --non-interactive
 
       ############################################
       # Plan then apply the target environment only.
