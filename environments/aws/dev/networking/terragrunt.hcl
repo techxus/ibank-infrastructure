@@ -15,6 +15,7 @@ dependency "vpc" {
     private_subnet_ids = ["subnet-mock-1", "subnet-mock-2"]
     vpc_cidr           = "10.0.0.0/16"
   }
+
   mock_outputs_allowed_terraform_commands = ["plan", "validate", "destroy"]
 }
 

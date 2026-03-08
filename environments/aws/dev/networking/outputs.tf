@@ -23,3 +23,7 @@ output "tailscale_router_public_ip" {
 output "tailscale_router_security_group_id" {
   value = module.tailscale_router.router_security_group_id
 }
+
+output "private_hosted_zone_id" {
+  value = aws_route53_zone.private.zone_id
+}
