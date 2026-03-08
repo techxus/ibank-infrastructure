@@ -190,8 +190,6 @@ resource "aws_iam_role_policy" "external_dns" {
 
 ############################################
 # Pod Identity Associations
-# Links IAM roles to Kubernetes service accounts
-# No OIDC required — agent handles token exchange
 ############################################
 resource "aws_eks_pod_identity_association" "alb_controller" {
   cluster_name    = var.cluster_name
@@ -214,10 +212,17 @@ resource "aws_eks_pod_identity_association" "vault" {
   role_arn        = aws_iam_role.vault.arn
 }
 
-resource "aws_eks_pod_identity_association" "external_dns" {
+resource "aws_eks_pod_identity_association" "external_dns_public" {
   cluster_name    = var.cluster_name
   namespace       = "external-dns"
-  service_account = "external-dns-${var.env}"
+  service_account = "external-dns-${var.env}-public"
+  role_arn        = aws_iam_role.external_dns.arn
+}
+
+resource "aws_eks_pod_identity_association" "external_dns_private" {
+  cluster_name    = var.cluster_name
+  namespace       = "external-dns"
+  service_account = "external-dns-${var.env}-private"
   role_arn        = aws_iam_role.external_dns.arn
 }
 
@@ -242,7 +247,7 @@ resource "aws_ssm_parameter" "rds_master_password" {
   tags        = var.tags
 
   lifecycle {
-    ignore_changes = [value]  # never rotate automatically
+    ignore_changes = [value]
   }
 }
 
