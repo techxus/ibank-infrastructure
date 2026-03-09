@@ -196,6 +196,24 @@ resource "aws_iam_role_policy" "github_actions" {
       },
 
       ############################################
+      # ElastiCache — Redis networking resources
+      ############################################
+      {
+        Effect   = "Allow"
+        Action   = ["elasticache:*"]
+        Resource = "*"
+      },
+
+      ############################################
+      # MSK — Kafka networking resources
+      ############################################
+      {
+        Effect   = "Allow"
+        Action   = ["kafka:*"]
+        Resource = "*"
+      },
+
+      ############################################
       # Secrets Manager — RDS credentials
       ############################################
       {

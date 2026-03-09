@@ -27,3 +27,13 @@ output "tailscale_router_security_group_id" {
 output "private_hosted_zone_id" {
   value = aws_route53_zone.private.zone_id
 }
+
+output "redis_security_group_id" {
+  description = "Redis security group ID"
+  value       = aws_security_group.redis.id
+}
+
+output "msk_security_group_id" {
+  description = "MSK security group ID"
+  value       = aws_security_group.msk.id
+}
